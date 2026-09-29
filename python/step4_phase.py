@@ -1,3 +1,10 @@
+"""
+Step 4 · 달 위상 위젯 (Flet 최종 버전)
+- 달 아이콘을 phase.py의 MoonPhaseLogic(도형을 겹쳐 그린 달 모양)으로 교체.
+- 테스트용으로 슬라이더 값이 위상도 함께 바꾼다 (실제 위상 데이터는 아직 미연결).
+- 이 다음 단계는 웹 버전(../web)으로 이어진다.
+"""
+
 import math
 import flet as ft
 from datetime import datetime
@@ -17,7 +24,7 @@ def main(page: ft.Page):
     page.bgcolor = AppConfig.BG_COLOR
 
     engine = MoonEngine()
-    test_lat, test_lon = 37.2108, 127.0795 # my location
+    test_lat, test_lon = 37.5665, 126.9780 # 서울 (테스트용 고정 위치)
     now = datetime.now()
     moon_data = engine.get_moon_position(test_lat, test_lon, now)
     moon_azimuth = moon_data['azimuth']

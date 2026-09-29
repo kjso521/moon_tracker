@@ -1,0 +1,155 @@
+/* Flet 버전(config.py AppConfig)의 색상과 크기를 옮겨왔어요. */
+:root {
+  --bg: #000;
+  --text: #fff;
+  --muted: rgba(255, 255, 255, 0.55);
+  --line: rgba(255, 255, 255, 0.16);
+  --idle: #fff;           /* COMPASS_COLOR_DEFAULT */
+  --match: #ffea00;       /* COMPASS_COLOR_MATCH (YELLOW_ACCENT_400) */
+  --moon-dark: #212121;   /* MOON_COLOR_DARK (GREY_900) */
+  --compass-size: min(250px, 66vw);
+  --moon-size: 28px;
+
+  color-scheme: dark;
+  font-family: "Montserrat", "Pretendard", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+main {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 24px);
+  text-align: center;
+}
+
+h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.02em; }
+
+/* ---------- Compass ---------- */
+.compass {
+  position: relative;
+  width: var(--compass-size);
+  height: var(--compass-size);
+  margin: 88px auto 36px;
+  color: var(--idle);
+  opacity: var(--opacity, 0.24);
+  transition: opacity 0.3s ease-out, color 0.3s ease-out;
+}
+.compass[data-level="match"] { color: var(--match); }
+
+.ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  transition: border-width 0.3s ease-out;
+}
+.compass[data-level="match"] .ring { border-width: 3px; }
+
+.arrow {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  width: 24px;
+  transform: translateX(-50%);
+  fill: currentColor;
+}
+
+/* 달 방위와 폰 방향의 차이만큼 회전해요. JS가 transform을 직접 넣어요. */
+.orbit { position: absolute; inset: 0; }
+
+.moon {
+  position: absolute;
+  top: calc(-30px - var(--moon-size));
+  left: 50%;
+  width: var(--moon-size);
+  height: var(--moon-size);
+  margin-left: calc(var(--moon-size) / -2);
+  overflow: visible;
+}
+.moon-dark { fill: var(--moon-dark); }
+.moon-lit { fill: currentColor; }
+
+/* ---------- Text ---------- */
+.readout { margin: 0; font-size: 34px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.guide { margin: 6px 0 0; font-size: 16px; }
+.compass[data-level="match"] ~ .guide { color: var(--match); }
+.hint { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+
+.details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 28px 0 0;
+  padding: 16px 0;
+  border-block: 1px solid var(--line);
+}
+.details div { display: flex; flex-direction: column; gap: 2px; }
+.details dt { font-size: 12px; color: var(--muted); }
+.details dd { margin: 0; font-size: 15px; font-variant-numeric: tabular-nums; }
+
+.status { margin: 16px 0 0; font-size: 12px; line-height: 1.6; color: var(--muted); }
+
+/* ---------- Panels ---------- */
+.panel {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  text-align: left;
+  font-size: 14px;
+}
+.panel summary { cursor: pointer; }
+.panel label { display: flex; justify-content: space-between; }
+.panel input[type="range"] { width: 100%; margin-top: 8px; accent-color: var(--match); }
+.note { margin: 8px 0; font-size: 12px; line-height: 1.6; color: var(--muted); }
+
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+.row input {
+  width: 80px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+
+button {
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--text);
+  color: var(--bg);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+button.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+
+/* ---------- Start overlay ---------- */
+.start {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  background: var(--bg);
+  text-align: center;
+}
+.start h2 { margin: 0; font-size: 28px; }
+.start p { margin: 0 0 16px; color: var(--muted); }
+.start button { padding: 12px 28px; font-size: 16px; }
+
+[hidden] { display: none !important; }

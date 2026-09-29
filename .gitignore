@@ -1,0 +1,16 @@
+# 비밀 정보 — 절대 커밋하지 않기
+githubtoken.txt
+*.token
+.env
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Flet 실행/빌드 산출물
+storage/
+build/
+
+# macOS
+.DS_Store

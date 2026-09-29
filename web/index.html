@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>Moon Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main>
+    <h1>Moon Tracker</h1>
+
+    <div id="compass" class="compass" data-level="idle">
+      <svg class="arrow" viewBox="0 0 24 14" aria-hidden="true"><path d="M12 0 24 14H0z"/></svg>
+      <div class="ring"></div>
+      <div id="orbit" class="orbit">
+        <svg id="moon" class="moon" viewBox="-1.05 -1.05 2.1 2.1" aria-hidden="true">
+          <circle class="moon-dark" r="1"/>
+          <path id="moon-lit" class="moon-lit"/>
+        </svg>
+      </div>
+    </div>
+
+    <p id="readout" class="readout">--</p>
+    <p id="guide" class="guide">&nbsp;</p>
+    <p id="hint" class="hint">&nbsp;</p>
+
+    <dl class="details">
+      <div><dt>고도</dt><dd id="alt">--</dd></div>
+      <div><dt>위상</dt><dd id="phase">--</dd></div>
+      <div><dt>월출</dt><dd id="rise">--</dd></div>
+      <div><dt>월몰</dt><dd id="set">--</dd></div>
+    </dl>
+
+    <section id="sim" class="panel" hidden>
+      <label for="sim-slider">방향 시뮬레이션 <span id="sim-value">0°</span></label>
+      <input id="sim-slider" type="range" min="0" max="359" value="0">
+      <p class="note">방향 센서가 없어서 슬라이더로 폰 방향을 흉내 내요.</p>
+    </section>
+
+    <details class="panel">
+      <summary>방위 보정 <span id="offset-label"></span></summary>
+      <p class="note">
+        나침반 센서는 자북을 가리키고, 달의 방위는 진북 기준이에요.
+        한국은 자기편각이 약 -9°라서 기본값을 -9°로 두었어요.
+        달이 보이면 폰을 달에 정확히 맞추고 아래 버튼을 눌러 보정하세요.
+      </p>
+      <div class="row">
+        <input id="offset" type="number" step="0.1" inputmode="decimal" aria-label="보정값(도)">
+        <button id="calibrate" type="button">지금 방향을 달로 보정</button>
+        <button id="reset-offset" type="button" class="secondary">기본값</button>
+      </div>
+    </details>
+
+    <p id="status" class="status"></p>
+  </main>
+
+  <div id="start" class="start">
+    <h2>Moon Tracker</h2>
+    <p>위치와 나침반 센서로 지금 달이 있는 방향을 찾아요.</p>
+    <button id="start-btn" type="button">시작하기</button>
+  </div>
+</body>
+</html>
