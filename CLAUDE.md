@@ -36,6 +36,11 @@ cd step1b_geolocator_android && flet build apk
 We moved to the web because the Flet Android build showed only a white screen. `app.js` holds all the logic. It uses `astronomy-engine` from a CDN, which matches ephem to 0.01° above the horizon.
 - The moon's phase is drawn as an SVG path in `moonPath(cycle)`. `cycle` comes from `MoonPhase()/360` (0 = new moon, 0.5 = full moon), so it knows whether the moon is waxing or waning.
 - `orientationToAim()` builds a rotation matrix from alpha/beta/gamma. It uses the direction the phone's top edge points when the phone lies flat, and the back camera's direction (plus its tilt) when the phone is held upright. Android sends `deviceorientationabsolute` events. iOS gives the heading in `webkitCompassHeading`, and the browser only allows the permission request from a button tap.
+- It's installable as a PWA: `manifest.webmanifest` sets standalone mode, and `sw.js` caches network-first with a 3 s fallback to cache so the app works offline in the field. **Bump `CACHE` in `sw.js` whenever you add files to `SHELL`.**
+- The layout is a single screen with no scrolling. `.stage` is a size container, and the compass takes `min(cqw, cqh)`. Every body marker orbits inside `--orbit-pad`, so markers never overlap the text.
+- Bodies are listed in the `BODIES` array, where each `id` equals its `Astronomy.Body` name. Enabled bodies and the selected target are saved in localStorage. The selected target drives the guidance, the match colour, and the vibration; the other bodies are drawn as dimmer markers.
+- Time is `anchor` (a date from the picker, or null for now) plus `shiftMin` (the ±24 h slider). Calibration is only allowed at live time.
+- On startup there's a start overlay only the first time; later launches start straight away. Recent Chrome also defines `DeviceOrientationEvent.requestPermission`, so don't use it to detect iOS. Instead, the start button comes back only when no sensor events arrive.
 - Sensor headings are relative to magnetic north, while the moon's azimuth is relative to true north. `state.offset` fixes the difference. It defaults to -9°, the magnetic declination in Korea, can be recalibrated by pointing at the moon, and is saved in localStorage.
 
 ### Flet (`python/`, legacy)

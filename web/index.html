@@ -4,7 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Moon Tracker">
   <title>Moon Tracker</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap">
@@ -15,54 +22,102 @@
 </head>
 <body>
   <main>
-    <h1>Moon Tracker</h1>
+    <header class="topbar">
+      <button id="menu-btn" class="icon-btn" type="button" aria-label="설정 열기">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <h1>Moon Tracker</h1>
+      <span></span>
+    </header>
 
-    <div id="compass" class="compass" data-level="idle">
-      <svg class="arrow" viewBox="0 0 24 14" aria-hidden="true"><path d="M12 0 24 14H0z"/></svg>
-      <div class="ring"></div>
-      <div id="orbit" class="orbit">
-        <svg id="moon" class="moon" viewBox="-1.05 -1.05 2.1 2.1" aria-hidden="true">
-          <circle class="moon-dark" r="1"/>
-          <path id="moon-lit" class="moon-lit"/>
-        </svg>
+    <nav id="targets" class="targets" hidden></nav>
+
+    <section class="stage">
+      <div id="compass" class="compass" data-level="idle">
+        <div class="face">
+          <svg class="arrow" viewBox="0 0 24 14" aria-hidden="true"><path d="M12 0 24 14H0z"/></svg>
+          <div class="ring"></div>
+        </div>
+        <div id="orbits"></div>
       </div>
-    </div>
+    </section>
 
-    <p id="readout" class="readout">--</p>
-    <p id="guide" class="guide">&nbsp;</p>
-    <p id="hint" class="hint">&nbsp;</p>
+    <section class="info">
+      <p id="readout" class="readout">--</p>
+      <p id="guide" class="guide">&nbsp;</p>
+      <p id="hint" class="hint">&nbsp;</p>
+    </section>
 
     <dl class="details">
       <div><dt>고도</dt><dd id="alt">--</dd></div>
-      <div><dt>위상</dt><dd id="phase">--</dd></div>
-      <div><dt>월출</dt><dd id="rise">--</dd></div>
-      <div><dt>월몰</dt><dd id="set">--</dd></div>
+      <div><dt id="d2-label">위상</dt><dd id="d2">--</dd></div>
+      <div><dt id="rise-label">월출</dt><dd id="rise">--</dd></div>
+      <div><dt id="set-label">월몰</dt><dd id="set">--</dd></div>
     </dl>
 
-    <section id="sim" class="panel" hidden>
-      <label for="sim-slider">방향 시뮬레이션 <span id="sim-value">0°</span></label>
+    <p id="status" class="status" hidden></p>
+
+    <section id="sim" class="sim" hidden>
+      <label for="sim-slider">방향 시뮬레이션 <span id="sim-value">0° N</span></label>
       <input id="sim-slider" type="range" min="0" max="359" value="0">
-      <p class="note">방향 센서가 없어서 슬라이더로 폰 방향을 흉내 내요.</p>
     </section>
 
-    <details class="panel">
-      <summary>방위 보정 <span id="offset-label"></span></summary>
-      <p class="note">
-        나침반 센서는 자북을 가리키고, 달의 방위는 진북 기준이에요.
-        한국은 자기편각이 약 -9°라서 기본값을 -9°로 두었어요.
-        달이 보이면 폰을 달에 정확히 맞추고 아래 버튼을 눌러 보정하세요.
-      </p>
-      <div class="row">
-        <input id="offset" type="number" step="0.1" inputmode="decimal" aria-label="보정값(도)">
-        <button id="calibrate" type="button">지금 방향을 달로 보정</button>
-        <button id="reset-offset" type="button" class="secondary">기본값</button>
+    <footer class="timebar">
+      <div class="time-row">
+        <label class="time-label">
+          <span id="time-text">--</span>
+          <input id="time-picker" type="datetime-local" aria-label="날짜와 시간 선택">
+        </label>
+        <button id="time-now" class="chip" type="button" hidden>지금으로</button>
       </div>
-    </details>
-
-    <p id="status" class="status"></p>
+      <input id="time-slider" type="range" min="-1440" max="1440" step="15" value="0" aria-label="시간 이동">
+    </footer>
   </main>
 
-  <div id="start" class="start">
+  <div id="drawer" class="drawer" aria-hidden="true">
+    <div class="drawer-backdrop" data-close></div>
+    <aside class="drawer-panel" role="dialog" aria-label="설정">
+      <header>
+        <h2>설정</h2>
+        <button class="icon-btn" type="button" data-close aria-label="설정 닫기">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </header>
+
+      <section>
+        <h3>천체 표시</h3>
+        <div id="body-options" class="body-options"></div>
+      </section>
+
+      <section>
+        <h3>방위 보정 <span id="offset-label"></span></h3>
+        <p class="note">
+          나침반은 자북을, 천체 방위는 진북을 기준으로 해요. 한국은 자기편각이 약 -9°라 기본값을 -9°로 두었어요.
+          천체가 보이면 폰을 정확히 겨누고 보정 버튼을 누르세요.
+        </p>
+        <div class="row">
+          <input id="offset" type="number" step="0.1" inputmode="decimal" aria-label="보정값(도)">
+          <button id="calibrate" type="button">지금 방향으로 보정</button>
+          <button id="reset-offset" type="button" class="secondary">기본값</button>
+        </div>
+      </section>
+
+      <section>
+        <h3>사용법</h3>
+        <p class="note">
+          폰을 세워 들면 후면 카메라가 보는 방향, 눕히면 폰 윗변이 가리키는 방향을 기준으로 안내해요.
+          아래 시간 막대로 ±24시간을 미리 볼 수 있고, 날짜를 누르면 원하는 날짜로 이동해요.
+        </p>
+      </section>
+
+      <section>
+        <h3>상태</h3>
+        <p id="drawer-status" class="note"></p>
+      </section>
+    </aside>
+  </div>
+
+  <div id="start" class="start" hidden>
     <h2>Moon Tracker</h2>
     <p>위치와 나침반 센서로 지금 달이 있는 방향을 찾아요.</p>
     <button id="start-btn" type="button">시작하기</button>

@@ -1,14 +1,16 @@
 /* Flet 버전(config.py AppConfig)의 색상과 크기를 옮겨왔어요. */
 :root {
   --bg: #000;
+  --surface: #111;
   --text: #fff;
   --muted: rgba(255, 255, 255, 0.55);
   --line: rgba(255, 255, 255, 0.16);
   --idle: #fff;           /* COMPASS_COLOR_DEFAULT */
   --match: #ffea00;       /* COMPASS_COLOR_MATCH (YELLOW_ACCENT_400) */
   --moon-dark: #212121;   /* MOON_COLOR_DARK (GREY_900) */
-  --compass-size: min(250px, 66vw);
-  --moon-size: 28px;
+  --marker: 28px;         /* 달 아이콘 크기 */
+  --gap: 22px;            /* 나침반 원과 천체 사이 간격 */
+  --orbit-pad: calc(var(--gap) + var(--marker)); /* 천체가 원 밖을 돌 공간 */
 
   color-scheme: dark;
   font-family: "Montserrat", "Pretendard", system-ui, sans-serif;
@@ -16,105 +18,262 @@
 
 * { box-sizing: border-box; }
 
+html, body {
+  height: 100%;
+  overflow: hidden;             /* 스크롤 없는 한 화면 UI */
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
-  min-height: 100dvh;
   background: var(--bg);
   color: var(--text);
+  word-break: keep-all;         /* 한국어는 어절 단위로 줄바꿈 */
+  overflow-wrap: break-word;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 main {
-  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-width: 440px;
   margin: 0 auto;
-  padding: calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 24px);
+  padding: calc(env(safe-area-inset-top) + 4px) 16px calc(env(safe-area-inset-bottom) + 12px);
   text-align: center;
 }
 
-h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.02em; }
+p { margin: 0; }
+
+/* ---------- Top bar ---------- */
+.topbar {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  height: 48px;
+  flex: none;
+}
+h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0.02em; }
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+.icon-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+
+/* ---------- Target chips ---------- */
+.targets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  flex: none;
+  padding-top: 4px;
+}
+.chip {
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.chip[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
 
 /* ---------- Compass ---------- */
+/* 남는 세로 공간을 전부 쓰고, 그 안에서 정사각형으로 최대한 크게 */
+.stage {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+
 .compass {
   position: relative;
-  width: var(--compass-size);
-  height: var(--compass-size);
-  margin: 88px auto 36px;
+  width: min(calc(100cqw - 48px), 100cqh, 350px); /* 좌우 여유는 천체 이름표 자리 */
+  aspect-ratio: 1;
   color: var(--idle);
-  opacity: var(--opacity, 0.24);
-  transition: opacity 0.3s ease-out, color 0.3s ease-out;
 }
 .compass[data-level="match"] { color: var(--match); }
+
+.face {
+  position: absolute;
+  inset: var(--orbit-pad);
+  opacity: var(--opacity, 0.24);
+  transition: opacity 0.3s ease-out;
+}
 
 .ring {
   position: absolute;
   inset: 0;
   border: 2px solid currentColor;
   border-radius: 50%;
-  transition: border-width 0.3s ease-out;
+  transition: border-width 0.3s ease-out, color 0.3s ease-out;
 }
 .compass[data-level="match"] .ring { border-width: 3px; }
 
 .arrow {
   position: absolute;
-  top: -22px;
+  top: -18px;
   left: 50%;
-  width: 24px;
+  width: 22px;
   transform: translateX(-50%);
   fill: currentColor;
 }
 
-/* 달 방위와 폰 방향의 차이만큼 회전해요. JS가 transform을 직접 넣어요. */
-.orbit { position: absolute; inset: 0; }
-
-.moon {
+/* 천체마다 하나씩. 방위 차이만큼 회전하고, JS가 transform을 직접 넣어요. */
+.orbit {
   position: absolute;
-  top: calc(-30px - var(--moon-size));
-  left: 50%;
-  width: var(--moon-size);
-  height: var(--moon-size);
-  margin-left: calc(var(--moon-size) / -2);
-  overflow: visible;
+  inset: var(--orbit-pad);
+  pointer-events: none;
 }
+
+.marker {
+  position: absolute;
+  top: calc(-1 * var(--orbit-pad));
+  left: 50%;
+  width: var(--marker);
+  height: var(--marker);
+  margin-left: calc(var(--marker) / -2);
+  color: var(--idle);
+  transition: opacity 0.3s ease-out, color 0.3s ease-out;
+}
+.compass[data-level="match"] .orbit.selected .marker { color: var(--match); }
+
+.marker svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .moon-dark { fill: var(--moon-dark); }
 .moon-lit { fill: currentColor; }
 
-/* ---------- Text ---------- */
-.readout { margin: 0; font-size: 34px; font-weight: 500; font-variant-numeric: tabular-nums; }
-.guide { margin: 6px 0 0; font-size: 16px; }
-.compass[data-level="match"] ~ .guide { color: var(--match); }
-.hint { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+.planet {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: var(--body-color);
+}
+.orbit.selected .planet { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px currentColor; }
+
+.marker-label {
+  position: absolute;
+  top: 50%;
+  left: calc(50% + 12px);
+  transform: translateY(-50%);
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.orbit[data-id="Moon"] .marker-label { left: calc(100% + 4px); }
+.single .marker-label { display: none; }
+
+/* ---------- Readout ---------- */
+.info { flex: none; padding-top: 4px; }
+.readout { font-size: 32px; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.guide { margin-top: 4px; font-size: 15px; min-height: 1.4em; }
+.compass-match .guide { color: var(--match); }
+.hint { margin-top: 2px; font-size: 13px; color: var(--muted); min-height: 1.4em; }
 
 .details {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin: 28px 0 0;
-  padding: 16px 0;
+  gap: 8px 12px;
+  flex: none;
+  margin: 12px 0 0;
+  padding: 10px 0;
   border-block: 1px solid var(--line);
 }
-.details div { display: flex; flex-direction: column; gap: 2px; }
-.details dt { font-size: 12px; color: var(--muted); }
-.details dd { margin: 0; font-size: 15px; font-variant-numeric: tabular-nums; }
+.details div { display: flex; flex-direction: column; gap: 1px; }
+.details dt { font-size: 11px; color: var(--muted); }
+.details dd { margin: 0; font-size: 14px; font-variant-numeric: tabular-nums; }
 
-.status { margin: 16px 0 0; font-size: 12px; line-height: 1.6; color: var(--muted); }
+.status { flex: none; margin-top: 8px; font-size: 12px; color: var(--match); }
 
-/* ---------- Panels ---------- */
-.panel {
-  margin-top: 16px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+.sim { flex: none; margin-top: 8px; font-size: 13px; text-align: left; }
+.sim label { display: flex; justify-content: space-between; color: var(--muted); }
+
+/* ---------- Time bar ---------- */
+.timebar { flex: none; margin-top: 10px; }
+.time-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; }
+
+.time-label {
+  position: relative;
+  padding: 4px 0;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
   text-align: left;
-  font-size: 14px;
+  cursor: pointer;
 }
-.panel summary { cursor: pointer; }
-.panel label { display: flex; justify-content: space-between; }
-.panel input[type="range"] { width: 100%; margin-top: 8px; accent-color: var(--match); }
-.note { margin: 8px 0; font-size: 12px; line-height: 1.6; color: var(--muted); }
+.time-label.custom { color: var(--match); }
+#time-text::after { content: " ▾"; font-size: 11px; color: var(--muted); }
+/* 투명한 date 입력을 글자 위에 겹쳐서, 글자를 누르면 기본 날짜 선택기가 열려요 */
+#time-picker {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+input[type="range"] { width: 100%; margin: 6px 0 0; accent-color: var(--match); }
+
+/* ---------- Drawer (settings) ---------- */
+.drawer { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+.drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.drawer-panel {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: min(320px, 86vw);
+  padding: calc(env(safe-area-inset-top) + 8px) 20px calc(env(safe-area-inset-bottom) + 20px);
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  transform: translateX(-100%);
+  transition: transform 0.25s ease-out;
+  text-align: left;
+}
+.drawer[aria-hidden="false"] { pointer-events: auto; }
+.drawer[aria-hidden="false"] .drawer-backdrop { opacity: 1; }
+.drawer[aria-hidden="false"] .drawer-panel { transform: none; }
+
+.drawer-panel header { display: flex; align-items: center; justify-content: space-between; margin-right: -12px; }
+.drawer-panel h2 { margin: 0; font-size: 18px; }
+.drawer-panel section { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.drawer-panel section:last-child { border-bottom: 0; }
+.drawer-panel h3 { margin: 0 0 8px; font-size: 14px; font-weight: 500; }
+#offset-label { color: var(--muted); font-weight: 400; }
+#drawer-status { white-space: pre-line; }
+
+.body-options { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+.body-options label { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 14px; cursor: pointer; }
+.body-options input { width: 18px; height: 18px; margin: 0; accent-color: var(--match); }
+.swatch { width: 10px; height: 10px; border-radius: 50%; background: var(--body-color); }
+
+.note { margin: 0 0 8px; font-size: 12px; line-height: 1.6; color: var(--muted); }
 
 .row { display: flex; flex-wrap: wrap; gap: 8px; }
 .row input {
-  width: 80px;
+  width: 72px;
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -123,22 +282,24 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.02em; }
   font: inherit;
 }
 
-button {
+button:not(.icon-btn):not(.chip) {
   padding: 8px 14px;
   border: 0;
   border-radius: 8px;
   background: var(--text);
   color: var(--bg);
   font: inherit;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
 }
-button.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+button.secondary { background: transparent !important; color: var(--text) !important; border: 1px solid var(--line) !important; }
 
 /* ---------- Start overlay ---------- */
 .start {
   position: fixed;
   inset: 0;
+  z-index: 20;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -149,7 +310,7 @@ button.secondary { background: transparent; color: var(--text); border: 1px soli
   text-align: center;
 }
 .start h2 { margin: 0; font-size: 28px; }
-.start p { margin: 0 0 16px; color: var(--muted); }
-.start button { padding: 12px 28px; font-size: 16px; }
+.start p { max-width: 17em; margin: 0 0 16px; color: var(--muted); line-height: 1.6; text-wrap: balance; }
+.start button { padding: 12px 28px !important; font-size: 16px !important; }
 
 [hidden] { display: none !important; }
