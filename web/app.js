@@ -521,9 +521,12 @@ function ensureEvents(id) {
 
 // 안내 대상 = 폰이 가리키는 방향에서 정확히 가장 가까운 천체.
 // 여유 각도를 두지 않아서, 겹친 두 천체의 경계는 정확히 가운데 각도예요.
+// 지평선 위에 있는 천체를 우선하고, 하나도 없을 때만 지평선 아래까지 봐요.
 function pickFocus(relatives) {
+  const ids = Object.keys(relatives);
+  const visible = ids.filter((id) => state.positions[id].altitude >= 0);
   let nearest = null;
-  for (const id of Object.keys(relatives)) {
+  for (const id of visible.length ? visible : ids) {
     if (nearest == null || Math.abs(relatives[id]) < Math.abs(relatives[nearest])) nearest = id;
   }
   return nearest;
