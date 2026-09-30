@@ -359,11 +359,6 @@ function createMarker(body) {
     marker.append(dot);
   }
 
-  const label = document.createElement('span');
-  label.className = 'marker-label';
-  label.textContent = body.name;
-  marker.append(label);
-
   orbit.append(marker);
   return { orbit, marker, lit };
 }
@@ -388,7 +383,6 @@ function rebuildBodies() {
     el.targets.append(chip);
   }
 
-  el.compass.classList.toggle('single', ordered.length === 1);
   el.targets.hidden = ordered.length <= 1;
   updatePositions();
 }
@@ -415,6 +409,12 @@ function buildBodyOptions() {
 
     const list = document.createElement('div');
     list.className = 'body-options';
+    const all = document.createElement('button');
+    all.type = 'button';
+    all.className = 'group-all';
+    all.dataset.group = group.id;
+    all.addEventListener('click', () => toggleGroup(group.id));
+    list.append(all);
     let season = null;
     for (const body of BODIES.filter((b) => b.group === group.id)) {
       if (body.season && body.season !== season) {   // 별자리는 계절별 소제목
@@ -439,6 +439,10 @@ function updateGroupCounts() {
     count.textContent = on ? `${on}/${total.length}` : `${total.length}`;
     count.classList.toggle('active', on > 0);
   }
+  for (const button of el.bodyOptions.querySelectorAll('.group-all')) {
+    const ids = BODIES.filter((b) => b.group === button.dataset.group).map((b) => b.id);
+    button.textContent = ids.every((id) => state.enabled.includes(id)) ? '전체 해제' : '전체 선택';
+  }
 }
 
 function createBodyOption(body) {
@@ -458,18 +462,32 @@ function createBodyOption(body) {
 }
 
 function toggleBody(id, input) {
-  const next = input.checked
-    ? BODIES.map((b) => b.id).filter((b) => b === id || state.enabled.includes(b))
-    : state.enabled.filter((b) => b !== id);
+  const next = input.checked ? [...state.enabled, id] : state.enabled.filter((b) => b !== id);
   if (!next.length) {           // 최소 하나는 켜져 있어야 해요
     input.checked = true;
     return;
   }
-  state.enabled = next;
-  save('bodies', next);
-  if (input.checked) state.target = id;
-  else if (!next.includes(state.target)) state.target = next[0];
+  setEnabled(next, input.checked ? id : null);
+}
+
+// 카테고리 전체 선택/해제. 이미 다 켜져 있으면 해제, 아니면 전부 켜요.
+function toggleGroup(groupId) {
+  const ids = BODIES.filter((b) => b.group === groupId).map((b) => b.id);
+  const allOn = ids.every((id) => state.enabled.includes(id));
+  let next = allOn ? state.enabled.filter((id) => !ids.includes(id)) : [...state.enabled, ...ids];
+  if (!next.length) next = ['Moon']; // 전부 꺼지면 달은 남겨요
+  setEnabled(next, allOn ? null : ids.find((id) => !state.enabled.includes(id)));
+}
+
+function setEnabled(ids, preferredTarget) {
+  state.enabled = BODIES.map((b) => b.id).filter((id) => ids.includes(id)); // 목록 순서 유지
+  save('bodies', state.enabled);
+  if (preferredTarget) state.target = preferredTarget;
+  else if (!state.enabled.includes(state.target)) state.target = state.enabled[0];
   save('target', state.target);
+  for (const input of el.bodyOptions.querySelectorAll('input[type="checkbox"]')) {
+    input.checked = state.enabled.includes(input.value);
+  }
   updateGroupCounts();
   rebuildBodies();
 }
@@ -532,7 +550,6 @@ function render() {
     const flip = id === 'Moon' && lat < 0 ? ' scaleX(-1)' : '';
     m.marker.style.transform = `rotate(${-angle}deg)${flip}`;
     m.orbit.classList.toggle('selected', id === state.target);
-    m.marker.classList.toggle('label-in', Math.sin(angle * Math.PI / 180) > 0.3);
     m.orbit.style.zIndex = id === state.target ? 2 : 1;
   }
 
@@ -559,7 +576,9 @@ function render() {
   }
 
   const body = bodyById[state.target];
-  el.readout.textContent = `${target.azimuth.toFixed(1)}° ${compassDirection(target.azimuth)}`;
+  // 여러 천체를 켰을 때만 이름을 앞에 붙여요 (궤도 위에는 이름표를 두지 않아요)
+  const azText = `${target.azimuth.toFixed(1)}° ${compassDirection(target.azimuth)}`;
+  el.readout.textContent = state.enabled.length > 1 ? `${body.name} · ${azText}` : azText;
   el.guide.textContent = isMatch
     ? `${body.name} 방향이에요!`
     : `${targetRelative > 0 ? '오른쪽' : '왼쪽'}으로 ${Math.round(diff)}° 돌리세요`;

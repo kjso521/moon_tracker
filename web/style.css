@@ -9,12 +9,11 @@
   --match: #ffea00;       /* COMPASS_COLOR_MATCH (YELLOW_ACCENT_400) */
   --moon-dark: #212121;   /* MOON_COLOR_DARK (GREY_900) */
   --marker: 28px;         /* 달 아이콘 크기 */
-  --gap: 22px;            /* 나침반 원과 천체 사이 간격 */
+  --gap: 12px;            /* 나침반 원과 천체 사이 간격 */
   --orbit-pad: calc(var(--gap) + var(--marker)); /* 천체가 원 밖을 돌 공간 */
 
-  /* 글자 크기는 이 네 가지만 써요. 새 요소도 여기서 고르기 */
-  --fs-display: 32px;   /* 방위 숫자, 시작 화면 제목 */
-  --fs-title: 17px;     /* 앱 제목, 설정 제목 */
+  /* 글자 크기는 이 세 가지만 써요. 새 요소도 여기서 고르기 */
+  --fs-title: 17px;     /* 앱 제목, 방위 숫자, 설정 제목 */
   --fs-body: 14px;      /* 안내, 값, 버튼, 목록 */
   --fs-caption: 12px;   /* 라벨, 설명, 보조 정보 */
 
@@ -114,7 +113,7 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
 
 .compass {
   position: relative;
-  width: min(calc(100cqw - 48px), 100cqh, 350px); /* 좌우 여유는 천체 이름표 자리 */
+  width: min(100cqw, 100cqh, 360px);
   aspect-ratio: 1;
   color: var(--idle);
 }
@@ -130,17 +129,19 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
 .ring {
   position: absolute;
   inset: 0;
+  z-index: 1;             /* 삼각형 위에 올려서, 원 안쪽으로 들어간 부분을 가려요 */
   border: 2px solid currentColor;
   border-radius: 50%;
+  background: var(--bg);
   transition: border-width 0.3s ease-out, color 0.3s ease-out;
 }
 .compass[data-level="match"] .ring { border-width: 3px; }
 
 .arrow {
   position: absolute;
-  top: -18px;
+  top: -6px;              /* 밑변 2px이 원 테두리에 겹치도록 */
   left: 50%;
-  width: 22px;
+  width: 14px;
   transform: translateX(-50%);
   fill: currentColor;
 }
@@ -200,26 +201,9 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
 .orbit.selected .nebula { box-shadow: 0 0 0 1.5px currentColor; }
 .orbit.selected .planet { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px currentColor; }
 
-.marker-label {
-  position: absolute;
-  top: 50%;
-  left: calc(50% + 12px);
-  transform: translateY(-50%);
-  font-size: var(--fs-caption);
-  white-space: nowrap;
-  color: var(--muted);
-}
-.orbit[data-id="Moon"] .marker-label { left: calc(100% + 4px); }
-/* 이름표는 선택한 천체에만. 오른쪽 절반에 있으면 안쪽(왼쪽)에 붙여서 화면 밖으로 안 나가게 */
-.marker-label { display: none; }
-.orbit.selected .marker-label { display: block; color: currentColor; }
-.single .marker-label { display: none !important; }
-.marker.label-in .marker-label { left: auto; right: calc(50% + 12px); }
-.orbit[data-id="Moon"] .marker.label-in .marker-label { left: auto; right: calc(100% + 4px); }
-
 /* ---------- Readout ---------- */
 .info { flex: none; padding-top: 4px; }
-.readout { font-size: var(--fs-display); font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.readout { font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; line-height: 1.2; }
 .guide { margin-top: 4px; font-size: var(--fs-body); font-weight: 500; min-height: 1.4em; }
 .compass-match .guide { color: var(--match); }
 .hint { margin-top: 2px; font-size: var(--fs-caption); color: var(--muted); min-height: 1.4em; }
@@ -249,12 +233,13 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
 .time-label {
   position: relative;
   padding: 4px 0;
-  font-size: var(--fs-body);
+  font-size: var(--fs-caption);
   font-variant-numeric: tabular-nums;
+  color: var(--muted);
   text-align: left;
   cursor: pointer;
 }
-.time-label.custom { color: var(--match); }
+.time-label.custom { color: var(--text); }
 #time-text::after { content: " ▾"; font-size: var(--fs-caption); color: var(--muted); }
 /* 투명한 date 입력을 글자 위에 겹쳐서, 글자를 누르면 기본 날짜 선택기가 열려요 */
 #time-picker {
@@ -265,7 +250,28 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
   cursor: pointer;
 }
 
-input[type="range"] { width: 100%; margin: 6px 0 0; accent-color: var(--match); }
+/* 얇고 조용한 슬라이더: 2px 선 + 작은 점 */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 24px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track { height: 2px; border-radius: 1px; background: var(--line); }
+input[type="range"]::-moz-range-track { height: 2px; border-radius: 1px; background: var(--line); }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--muted);
+}
+input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: var(--muted); }
 
 /* ---------- Drawer (settings) ---------- */
 .drawer { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
@@ -316,6 +322,15 @@ input[type="range"] { width: 100%; margin: 6px 0 0; accent-color: var(--match); 
 .group[open] summary::after { transform: rotate(180deg); }
 .group-count { font-size: var(--fs-caption); color: var(--muted); }
 .group-count.active { color: var(--match); }
+.group-all {
+  grid-column: 1 / -1;
+  justify-self: end;
+  padding: 2px 0 !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+  font-size: var(--fs-caption) !important;
+  font-weight: 400 !important;
+}
 .season { grid-column: 1 / -1; margin: 6px 0 0; font-size: var(--fs-caption); color: var(--muted); }
 .body-options { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; padding-bottom: 10px; }
 .body-options label { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: var(--fs-body); cursor: pointer; }
@@ -362,7 +377,7 @@ button.secondary { background: transparent !important; color: var(--text) !impor
   background: var(--bg);
   text-align: center;
 }
-.start h2 { margin: 0; font-size: var(--fs-display); }
+.start h2 { margin: 0; font-size: var(--fs-title); }
 .start p { max-width: 17em; font-size: var(--fs-body); margin: 0 0 16px; color: var(--muted); line-height: 1.6; text-wrap: balance; }
 .start button { padding: 12px 28px !important; }
 
