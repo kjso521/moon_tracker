@@ -12,6 +12,12 @@
   --gap: 22px;            /* 나침반 원과 천체 사이 간격 */
   --orbit-pad: calc(var(--gap) + var(--marker)); /* 천체가 원 밖을 돌 공간 */
 
+  /* 글자 크기는 이 네 가지만 써요. 새 요소도 여기서 고르기 */
+  --fs-display: 32px;   /* 방위 숫자, 시작 화면 제목 */
+  --fs-title: 17px;     /* 앱 제목, 설정 제목 */
+  --fs-body: 14px;      /* 안내, 값, 버튼, 목록 */
+  --fs-caption: 12px;   /* 라벨, 설명, 보조 정보 */
+
   color-scheme: dark;
   font-family: "Montserrat", "Pretendard", system-ui, sans-serif;
 }
@@ -56,7 +62,7 @@ p { margin: 0; }
   height: 48px;
   flex: none;
 }
-h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0.02em; }
+h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.02em; }
 
 .icon-btn {
   display: grid;
@@ -74,12 +80,15 @@ h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0.02em; }
 /* ---------- Target chips ---------- */
 .targets {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
   gap: 6px;
   flex: none;
-  padding-top: 4px;
+  padding: 4px 16px 2px;
+  margin: 0 -16px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.targets::-webkit-scrollbar { display: none; }
+.targets::before, .targets::after { content: ""; margin: auto; } /* 적을 땐 가운데 정렬 */
 .chip {
   padding: 5px 12px;
   border: 1px solid var(--line);
@@ -87,7 +96,8 @@ h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0.02em; }
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-caption);
+  white-space: nowrap;
   cursor: pointer;
 }
 .chip[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
@@ -167,6 +177,27 @@ h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0.02em; }
   border-radius: 50%;
   background: var(--body-color);
 }
+.star {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  background: var(--body-color);
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  transition: transform 0.3s ease-out;
+}
+.orbit.selected .star { transform: scale(1.5); }
+.nebula {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--body-color) 0 25%, transparent 70%);
+}
+.orbit.selected .nebula { box-shadow: 0 0 0 1.5px currentColor; }
 .orbit.selected .planet { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px currentColor; }
 
 .marker-label {
@@ -174,19 +205,24 @@ h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0.02em; }
   top: 50%;
   left: calc(50% + 12px);
   transform: translateY(-50%);
-  font-size: 11px;
+  font-size: var(--fs-caption);
   white-space: nowrap;
   color: var(--muted);
 }
 .orbit[data-id="Moon"] .marker-label { left: calc(100% + 4px); }
-.single .marker-label { display: none; }
+/* 이름표는 선택한 천체에만. 오른쪽 절반에 있으면 안쪽(왼쪽)에 붙여서 화면 밖으로 안 나가게 */
+.marker-label { display: none; }
+.orbit.selected .marker-label { display: block; color: currentColor; }
+.single .marker-label { display: none !important; }
+.marker.label-in .marker-label { left: auto; right: calc(50% + 12px); }
+.orbit[data-id="Moon"] .marker.label-in .marker-label { left: auto; right: calc(100% + 4px); }
 
 /* ---------- Readout ---------- */
 .info { flex: none; padding-top: 4px; }
-.readout { font-size: 32px; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.2; }
-.guide { margin-top: 4px; font-size: 15px; min-height: 1.4em; }
+.readout { font-size: var(--fs-display); font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.guide { margin-top: 4px; font-size: var(--fs-body); font-weight: 500; min-height: 1.4em; }
 .compass-match .guide { color: var(--match); }
-.hint { margin-top: 2px; font-size: 13px; color: var(--muted); min-height: 1.4em; }
+.hint { margin-top: 2px; font-size: var(--fs-caption); color: var(--muted); min-height: 1.4em; }
 
 .details {
   display: grid;
@@ -198,12 +234,12 @@ h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0.02em; }
   border-block: 1px solid var(--line);
 }
 .details div { display: flex; flex-direction: column; gap: 1px; }
-.details dt { font-size: 11px; color: var(--muted); }
-.details dd { margin: 0; font-size: 14px; font-variant-numeric: tabular-nums; }
+.details dt { font-size: var(--fs-caption); color: var(--muted); }
+.details dd { margin: 0; font-size: var(--fs-body); font-variant-numeric: tabular-nums; }
 
-.status { flex: none; margin-top: 8px; font-size: 12px; color: var(--match); }
+.status { flex: none; margin-top: 8px; font-size: var(--fs-caption); color: var(--match); }
 
-.sim { flex: none; margin-top: 8px; font-size: 13px; text-align: left; }
+.sim { flex: none; margin-top: 8px; font-size: var(--fs-caption); text-align: left; }
 .sim label { display: flex; justify-content: space-between; color: var(--muted); }
 
 /* ---------- Time bar ---------- */
@@ -213,13 +249,13 @@ h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0.02em; }
 .time-label {
   position: relative;
   padding: 4px 0;
-  font-size: 15px;
+  font-size: var(--fs-body);
   font-variant-numeric: tabular-nums;
   text-align: left;
   cursor: pointer;
 }
 .time-label.custom { color: var(--match); }
-#time-text::after { content: " ▾"; font-size: 11px; color: var(--muted); }
+#time-text::after { content: " ▾"; font-size: var(--fs-caption); color: var(--muted); }
 /* 투명한 date 입력을 글자 위에 겹쳐서, 글자를 누르면 기본 날짜 선택기가 열려요 */
 #time-picker {
   position: absolute;
@@ -257,19 +293,36 @@ input[type="range"] { width: 100%; margin: 6px 0 0; accent-color: var(--match); 
 .drawer[aria-hidden="false"] .drawer-panel { transform: none; }
 
 .drawer-panel header { display: flex; align-items: center; justify-content: space-between; margin-right: -12px; }
-.drawer-panel h2 { margin: 0; font-size: 18px; }
+.drawer-panel h2 { margin: 0; font-size: var(--fs-title); }
 .drawer-panel section { padding: 16px 0; border-bottom: 1px solid var(--line); }
 .drawer-panel section:last-child { border-bottom: 0; }
-.drawer-panel h3 { margin: 0 0 8px; font-size: 14px; font-weight: 500; }
+.drawer-panel h3 { margin: 0 0 8px; font-size: var(--fs-body); font-weight: 500; }
 #offset-label { color: var(--muted); font-weight: 400; }
 #drawer-status { white-space: pre-line; }
 
-.body-options { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
-.body-options label { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 14px; cursor: pointer; }
+.group { border-top: 1px solid var(--line); }
+.group:first-child { border-top: 0; }
+.group summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  font-size: var(--fs-body);
+  list-style: none;
+  cursor: pointer;
+}
+.group summary::-webkit-details-marker { display: none; }
+.group summary::after { content: "▾"; margin-left: auto; color: var(--muted); transition: transform 0.2s; }
+.group[open] summary::after { transform: rotate(180deg); }
+.group-count { font-size: var(--fs-caption); color: var(--muted); }
+.group-count.active { color: var(--match); }
+.season { grid-column: 1 / -1; margin: 6px 0 0; font-size: var(--fs-caption); color: var(--muted); }
+.body-options { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; padding-bottom: 10px; }
+.body-options label { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: var(--fs-body); cursor: pointer; }
 .body-options input { width: 18px; height: 18px; margin: 0; accent-color: var(--match); }
 .swatch { width: 10px; height: 10px; border-radius: 50%; background: var(--body-color); }
 
-.note { margin: 0 0 8px; font-size: 12px; line-height: 1.6; color: var(--muted); }
+.note { margin: 0 0 8px; font-size: var(--fs-caption); line-height: 1.6; color: var(--muted); }
 
 .row { display: flex; flex-wrap: wrap; gap: 8px; }
 .row input {
@@ -289,7 +342,7 @@ button:not(.icon-btn):not(.chip) {
   background: var(--text);
   color: var(--bg);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 500;
   cursor: pointer;
 }
@@ -309,8 +362,8 @@ button.secondary { background: transparent !important; color: var(--text) !impor
   background: var(--bg);
   text-align: center;
 }
-.start h2 { margin: 0; font-size: 28px; }
-.start p { max-width: 17em; margin: 0 0 16px; color: var(--muted); line-height: 1.6; text-wrap: balance; }
-.start button { padding: 12px 28px !important; font-size: 16px !important; }
+.start h2 { margin: 0; font-size: var(--fs-display); }
+.start p { max-width: 17em; font-size: var(--fs-body); margin: 0 0 16px; color: var(--muted); line-height: 1.6; text-wrap: balance; }
+.start button { padding: 12px 28px !important; }
 
 [hidden] { display: none !important; }

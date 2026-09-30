@@ -11,15 +11,50 @@ const CONFIG = {
   refreshMs: 30_000,
 };
 
-// id는 Astronomy.Body의 이름과 같아요.
+// 카테고리 → 설정 서랍에서 접었다 펼 수 있는 묶음
+const GROUPS = [
+  { id: 'solar', name: '태양계', open: true },
+  { id: 'constellation', name: '별자리' },
+  { id: 'deepsky', name: '성운·은하' },
+];
+
+// 태양계 천체의 id는 Astronomy.Body의 이름과 같아요.
+// 별자리와 성운·은하는 고정된 좌표(J2000 적경 ra[시], 적위 dec[°])의 기준점 하나로 방향을 잡아요.
+const STAR_COLOR = '#cfd8ff';
+const DEEPSKY_COLOR = '#e1bee7';
+const star = (id, name, season, ra, dec, ref) => ({ id, name, season, ra, dec, ref, group: 'constellation', color: STAR_COLOR });
+const deepsky = (id, name, ra, dec, ref) => ({ id, name, ra, dec, ref, group: 'deepsky', color: DEEPSKY_COLOR });
+
 const BODIES = [
-  { id: 'Moon',    name: '달',   riseLabel: '월출', setLabel: '월몰' },
-  { id: 'Sun',     name: '태양', riseLabel: '일출', setLabel: '일몰', color: '#ffb74d' },
-  { id: 'Mercury', name: '수성', color: '#b0bec5' },
-  { id: 'Venus',   name: '금성', color: '#fff3c4' },
-  { id: 'Mars',    name: '화성', color: '#ff7043' },
-  { id: 'Jupiter', name: '목성', color: '#ffe0b2' },
-  { id: 'Saturn',  name: '토성', color: '#ffd54f' },
+  { id: 'Moon',    name: '달',   group: 'solar', riseLabel: '월출', setLabel: '월몰' },
+  { id: 'Sun',     name: '태양', group: 'solar', riseLabel: '일출', setLabel: '일몰', color: '#ffb74d' },
+  { id: 'Mercury', name: '수성', group: 'solar', color: '#b0bec5' },
+  { id: 'Venus',   name: '금성', group: 'solar', color: '#fff3c4' },
+  { id: 'Mars',    name: '화성', group: 'solar', color: '#ff7043' },
+  { id: 'Jupiter', name: '목성', group: 'solar', color: '#ffe0b2' },
+  { id: 'Saturn',  name: '토성', group: 'solar', color: '#ffd54f' },
+
+  star('Polaris',     '북극성',       '사계절',  2.530,  89.26, '북극성 (작은곰자리)'),
+  star('BigDipper',   '북두칠성',     '사계절', 12.334,  55.58, '국자 중심 (큰곰자리)'),
+  star('Cassiopeia',  '카시오페이아', '사계절',  0.945,  60.72, 'W자 가운데 별'),
+  star('Leo',         '사자자리',     '봄',     10.139,  11.97, '레굴루스'),
+  star('Bootes',      '목동자리',     '봄',     14.261,  19.18, '아르크투루스'),
+  star('Virgo',       '처녀자리',     '봄',     13.420, -11.16, '스피카'),
+  star('Lyra',        '거문고자리',   '여름',   18.616,  38.78, '베가 (직녀성)'),
+  star('Aquila',      '독수리자리',   '여름',   19.846,   8.87, '알타이르 (견우성)'),
+  star('Cygnus',      '백조자리',     '여름',   20.690,  45.28, '데네브'),
+  star('Scorpius',    '전갈자리',     '여름',   16.490, -26.43, '안타레스'),
+  star('Sagittarius', '궁수자리',     '여름',   18.650, -28.90, '주전자 모양 중심'),
+  star('Pegasus',     '페가수스자리', '가을',   23.626,  21.89, '가을철 대사각형 중심'),
+  star('Andromeda',   '안드로메다자리', '가을',  1.162,  35.62, '미라크'),
+  star('Orion',       '오리온자리',   '겨울',    5.604,  -1.20, '벨트(삼태성) 가운데'),
+  star('Taurus',      '황소자리',     '겨울',    4.599,  16.51, '알데바란'),
+  star('Gemini',      '쌍둥이자리',   '겨울',    7.666,  29.96, '카스토르·폴룩스 사이'),
+  star('CanisMajor',  '큰개자리',     '겨울',    6.752, -16.72, '시리우스'),
+
+  deepsky('MilkyWayCore', '은하수 중심',     17.761, -29.01, '궁수자리 A*'),
+  deepsky('M31',          '안드로메다 은하',  0.712,  41.27, 'M31'),
+  deepsky('M45',          '플레이아데스',     3.791,  24.12, 'M45 · 좀생이별'),
 ];
 const bodyById = Object.fromEntries(BODIES.map((b) => [b.id, b]));
 
@@ -81,27 +116,42 @@ state.target = state.enabled.includes(load('target', 'Moon')) ? load('target', '
 // 천문 계산 (core.py MoonEngine의 JS 버전)
 // ---------------------------------------------------------------------------
 
-function computeBody(id, date, observer) {
-  const { Body, Equator, Horizon, MoonPhase, Illumination, SearchRiseSet } = Astronomy;
-  const body = Body[id];
-  const eq = Equator(body, date, observer, true, true);
+// withEvents: 출몰 시각 검색은 무거워서, 안내 중인 천체만 계산해요.
+function computeBody(body, date, observer, withEvents) {
+  const { Body, Equator, Horizon, MoonPhase, Illumination, SearchRiseSet, DefineStar } = Astronomy;
+  let target = Body[body.id];
+  if (body.ra != null) {
+    // 고정 좌표는 임시 별(Star1)로 등록하면 세차 보정과 출몰 계산을 행성과 똑같이 쓸 수 있어요.
+    DefineStar(Body.Star1, body.ra, body.dec, 1000);
+    target = Body.Star1;
+  }
+  const eq = Equator(target, date, observer, true, true);
   const hor = Horizon(date, observer, eq.ra, eq.dec, 'normal');
-  const rise = SearchRiseSet(body, observer, +1, date, 2);
-  const set = SearchRiseSet(body, observer, -1, date, 2);
   const result = {
     azimuth: hor.azimuth,          // 0~360, 진북 기준 시계방향
     altitude: hor.altitude,        // 지평선 위 고도
-    rise: rise ? rise.date : null,
-    set: set ? set.date : null,
+    rise: null,
+    set: null,
   };
-  const illum = Illumination(body, date);
-  if (id === 'Moon') {
-    result.cycle = MoonPhase(date) / 360;        // 0 삭 → 0.5 보름 → 1 삭
-    result.illumination = illum.phase_fraction;  // 0~1 밝은 면적
-  } else {
-    result.magnitude = illum.mag;                // 겉보기 등급 (작을수록 밝음)
+  if (withEvents) {
+    const rise = SearchRiseSet(target, observer, +1, date, 2);
+    const set = SearchRiseSet(target, observer, -1, date, 2);
+    result.rise = rise ? rise.date : null;
+    result.set = set ? set.date : null;
+  }
+  if (body.id === 'Moon') {
+    result.cycle = MoonPhase(date) / 360;                              // 0 삭 → 0.5 보름 → 1 삭
+    result.illumination = Illumination(target, date).phase_fraction;   // 0~1 밝은 면적
+  } else if (body.group === 'solar') {
+    result.magnitude = Illumination(target, date).mag;                 // 겉보기 등급 (작을수록 밝음)
   }
   return result;
+}
+
+// 받침 있는 이름에는 "이", 없으면 "가"
+function subjectParticle(word) {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  return code >= 0 && code <= 11171 && code % 28 !== 0 ? '이' : '가';
 }
 
 const DIRECTIONS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
@@ -304,7 +354,7 @@ function createMarker(body) {
     marker.append(svg);
   } else {
     const dot = document.createElement('span');
-    dot.className = 'planet';
+    dot.className = { solar: 'planet', constellation: 'star', deepsky: 'nebula' }[body.group];
     marker.style.setProperty('--body-color', body.color);
     marker.append(dot);
   }
@@ -347,25 +397,64 @@ function selectTarget(id) {
   state.target = id;
   state.wasMatch = false;
   save('target', id);
-  render();
+  updatePositions(); // 출몰 시각은 안내 중인 천체만 계산하므로 다시 계산
 }
 
 function buildBodyOptions() {
-  for (const body of BODIES) {
-    const label = document.createElement('label');
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.value = body.id;
-    input.checked = state.enabled.includes(body.id);
-    input.addEventListener('change', () => toggleBody(body.id, input));
+  for (const group of GROUPS) {
+    const details = document.createElement('details');
+    details.className = 'group';
+    details.open = Boolean(group.open);
+    const summary = document.createElement('summary');
+    const title = document.createElement('span');
+    title.textContent = group.name;
+    const count = document.createElement('span');
+    count.className = 'group-count';
+    count.dataset.group = group.id;
+    summary.append(title, count);
 
-    const swatch = document.createElement('span');
-    swatch.className = 'swatch';
-    swatch.style.setProperty('--body-color', body.color ?? '#fff');
-
-    label.append(input, swatch, body.name);
-    el.bodyOptions.append(label);
+    const list = document.createElement('div');
+    list.className = 'body-options';
+    let season = null;
+    for (const body of BODIES.filter((b) => b.group === group.id)) {
+      if (body.season && body.season !== season) {   // 별자리는 계절별 소제목
+        season = body.season;
+        const heading = document.createElement('p');
+        heading.className = 'season';
+        heading.textContent = season;
+        list.append(heading);
+      }
+      list.append(createBodyOption(body));
+    }
+    details.append(summary, list);
+    el.bodyOptions.append(details);
   }
+  updateGroupCounts();
+}
+
+function updateGroupCounts() {
+  for (const count of el.bodyOptions.querySelectorAll('.group-count')) {
+    const total = BODIES.filter((b) => b.group === count.dataset.group);
+    const on = total.filter((b) => state.enabled.includes(b.id)).length;
+    count.textContent = on ? `${on}/${total.length}` : `${total.length}`;
+    count.classList.toggle('active', on > 0);
+  }
+}
+
+function createBodyOption(body) {
+  const label = document.createElement('label');
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.value = body.id;
+  input.checked = state.enabled.includes(body.id);
+  input.addEventListener('change', () => toggleBody(body.id, input));
+
+  const swatch = document.createElement('span');
+  swatch.className = 'swatch';
+  swatch.style.setProperty('--body-color', body.color ?? '#fff');
+
+  label.append(input, swatch, body.name);
+  return label;
 }
 
 function toggleBody(id, input) {
@@ -381,6 +470,7 @@ function toggleBody(id, input) {
   if (input.checked) state.target = id;
   else if (!next.includes(state.target)) state.target = next[0];
   save('target', state.target);
+  updateGroupCounts();
   rebuildBodies();
 }
 
@@ -393,7 +483,7 @@ function updatePositions() {
   const observer = new Astronomy.Observer(state.lat, state.lon, 0);
   state.positions = {};
   for (const id of state.enabled) {
-    state.positions[id] = computeBody(id, date, observer);
+    state.positions[id] = computeBody(bodyById[id], date, observer, id === state.target);
   }
   const moon = state.positions.Moon;
   if (moon) state.markers.Moon.lit.setAttribute('d', moonPath(moon.cycle));
@@ -442,6 +532,7 @@ function render() {
     const flip = id === 'Moon' && lat < 0 ? ' scaleX(-1)' : '';
     m.marker.style.transform = `rotate(${-angle}deg)${flip}`;
     m.orbit.classList.toggle('selected', id === state.target);
+    m.marker.classList.toggle('label-in', Math.sin(angle * Math.PI / 180) > 0.3);
     m.orbit.style.zIndex = id === state.target ? 2 : 1;
   }
 
@@ -474,7 +565,8 @@ function render() {
     : `${targetRelative > 0 ? '오른쪽' : '왼쪽'}으로 ${Math.round(diff)}° 돌리세요`;
 
   if (target.altitude < 0) {
-    el.hint.textContent = `${body.name}이 지평선 아래에 있어요 · ${body.riseLabel ?? '뜨는 시각'} ${formatEvent(target.rise)}`;
+    const when = target.rise ? ` · ${body.riseLabel ?? '뜨는 시각'} ${formatEvent(target.rise)}` : '';
+    el.hint.textContent = `${body.name}${subjectParticle(body.name)} 지평선 아래에 있어요${when}`;
   } else if (state.pitch != null) {
     const dAlt = target.altitude - state.pitch;
     el.hint.textContent = Math.abs(dAlt) <= CONFIG.matchDeg
@@ -488,14 +580,20 @@ function render() {
   if (state.target === 'Moon') {
     el.d2Label.textContent = '위상';
     el.d2.textContent = `${phaseName(target.cycle)} · ${Math.round(target.illumination * 100)}%`;
-  } else {
+  } else if (body.group === 'solar') {
     el.d2Label.textContent = '밝기';
     el.d2.textContent = `${target.magnitude.toFixed(1)}등급`;
+  } else {
+    el.d2Label.textContent = '기준점';
+    el.d2.textContent = body.ref;
   }
   el.riseLabel.textContent = body.riseLabel ?? '뜨는 시각';
   el.setLabel.textContent = body.setLabel ?? '지는 시각';
-  el.rise.textContent = formatEvent(target.rise);
-  el.set.textContent = formatEvent(target.set);
+  // 이틀 안에 뜨고 지는 일이 없으면: 지평선 위면 주극성(지지 않음), 아래면 뜨지 않음
+  const noEvents = !target.rise && !target.set;
+  const allDay = target.altitude >= 0 ? '지지 않음' : '뜨지 않음';
+  el.rise.textContent = noEvents ? allDay : formatEvent(target.rise);
+  el.set.textContent = noEvents ? allDay : formatEvent(target.set);
 
   renderStatus();
 }
