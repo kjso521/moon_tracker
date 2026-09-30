@@ -102,7 +102,7 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
 
 .compass {
   position: relative;
-  width: min(100cqw, calc(100cqh - 24px), 360px); /* 위쪽 24px은 방향이 맞을 때 뜨는 이름 자리 */
+  width: min(100cqw, calc(100cqh - 52px), 360px); /* 위쪽 52px은 삼각형 근처 천체 이름(최대 3층) 자리 */
   aspect-ratio: 1;
   color: var(--idle);
   transition: color 0.3s ease-out; /* 삼각형과 원이 currentColor를 함께 써서 동시에 바뀌어요 */
@@ -191,7 +191,7 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
 .orbit.selected .nebula { box-shadow: 0 0 0 1.5px currentColor; }
 .marker-name {
   position: absolute;
-  bottom: calc(100% + 4px);
+  bottom: calc(100% + 3px + var(--label-level, 0) * 15px);
   left: 50%;
   transform: translateX(-50%);
   font-size: var(--fs-caption);
@@ -200,7 +200,7 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
   opacity: 0;
   transition: opacity 0.3s ease-out;
 }
-.compass[data-level="match"] .orbit.selected .marker-name { opacity: 1; }
+.marker.named .marker-name { opacity: 1; }
 .orbit.selected .planet { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px currentColor; }
 
 /* ---------- Readout ---------- */

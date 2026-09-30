@@ -5,7 +5,9 @@ const CONFIG = {
   approachDeg: 60,      // 이 각도 안이면 점점 밝아짐
   idleOpacity: 0.24,    // COMPASS_OPACITY_DEFAULT
   otherOpacity: 0.6,    // 안내 대상이 아닌 천체의 투명도
-  focusHysteresis: 2,   // 안내 대상을 바꾸려면 이만큼(°) 더 가까워야 해요. 두 천체 사이에서 깜빡임 방지
+  labelDeg: 20,         // 삼각형 기준 이 각도 안의 천체는 이름을 띄워요
+  labelSepDeg: 22,      // 이름표 하나가 궤도에서 차지하는 대략의 각도. 이보다 가까우면 층을 나눠요
+  labelMaxLevels: 3,
   defaultOffset: -9,    // 한국 기준 자기편각(°). 진북 방위 = 자북 방위 + 편각
   defaultLocation: { lat: 37.5665, lon: 126.978, name: '서울' }, // GPS를 못 받을 때
   smoothing: 0.2,       // 센서 흔들림 완화 (0~1, 클수록 빠르게 반응)
@@ -517,22 +519,32 @@ function ensureEvents(id) {
   Object.assign(pos, computeBody(bodyById[id], targetTime(), observer, true));
 }
 
-// 안내 대상 = 폰이 가리키는 방향에서 가장 가까운 천체.
-// 지평선 위에 있는 천체를 우선하고, 하나도 없을 때만 지평선 아래까지 봐요.
+// 안내 대상 = 폰이 가리키는 방향에서 정확히 가장 가까운 천체.
+// 여유 각도를 두지 않아서, 겹친 두 천체의 경계는 정확히 가운데 각도예요.
 function pickFocus(relatives) {
-  const ids = Object.keys(relatives);
-  const visible = ids.filter((id) => state.positions[id].altitude >= 0);
-  const candidates = visible.length ? visible : ids;
   let nearest = null;
-  for (const id of candidates) {
+  for (const id of Object.keys(relatives)) {
     if (nearest == null || Math.abs(relatives[id]) < Math.abs(relatives[nearest])) nearest = id;
   }
-  const current = state.target;
-  if (candidates.includes(current) &&
-      Math.abs(relatives[nearest]) > Math.abs(relatives[current]) - CONFIG.focusHysteresis) {
-    return current;
-  }
   return nearest;
+}
+
+// 삼각형 근처(±labelDeg)의 천체에 이름을 띄워요. 서로 가까우면 겹치지 않게 층을 나눠 위로 쌓아요.
+// 가까운 천체부터 아래층(아이콘 바로 위)에 놓여요.
+function assignLabelLevels(relatives) {
+  const named = Object.keys(relatives)
+    .filter((id) => Math.abs(relatives[id]) <= CONFIG.labelDeg)
+    .sort((a, b) => Math.abs(relatives[a]) - Math.abs(relatives[b]));
+  const placed = [];    // { rel, level }
+  const levels = {};
+  for (const id of named) {
+    let level = 0;
+    while (placed.some((p) => p.level === level && Math.abs(p.rel - relatives[id]) < CONFIG.labelSepDeg)) level++;
+    if (level >= CONFIG.labelMaxLevels) continue; // 너무 많이 겹치면 생략
+    placed.push({ rel: relatives[id], level });
+    levels[id] = level;
+  }
+  return levels;
 }
 
 function render() {
@@ -544,6 +556,7 @@ function render() {
     if (state.positions[id]) relatives[id] = signedDiff(state.positions[id].azimuth, heading);
   }
   const focus = pickFocus(relatives);
+  const labelLevels = assignLabelLevels(relatives);
   if (!focus) return;
   if (focus !== state.target) {
     state.target = focus;
@@ -570,6 +583,9 @@ function render() {
     m.marker.style.transform = `rotate(${-angle}deg)${flip}`;
     m.orbit.classList.toggle('selected', id === state.target);
     m.orbit.style.zIndex = id === state.target ? 2 : 1;
+    const level = labelLevels[id];
+    m.marker.classList.toggle('named', level != null);
+    if (level != null) m.marker.style.setProperty('--label-level', level);
   }
 
   const diff = Math.abs(targetRelative);
