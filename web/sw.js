@@ -1,6 +1,6 @@
 // 오프라인 지원: 온라인이면 항상 최신 파일(network-first), 끊기면 캐시로 동작해요.
 // 출사 장소는 인터넷이 약한 경우가 많아서, 3초 안에 응답이 없으면 캐시를 먼저 써요.
-const CACHE = 'moon-tracker-v3';
+const CACHE = 'moon-tracker-v4';
 const SHELL = [
   './', './index.html', './style.css', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png',

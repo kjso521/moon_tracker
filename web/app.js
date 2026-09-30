@@ -4,7 +4,8 @@ const CONFIG = {
   matchDeg: 3,          // 이 각도 안이면 "일치" (노란색)
   approachDeg: 60,      // 이 각도 안이면 점점 밝아짐
   idleOpacity: 0.24,    // COMPASS_OPACITY_DEFAULT
-  otherOpacity: 0.6,    // 선택하지 않은 천체의 투명도
+  otherOpacity: 0.6,    // 안내 대상이 아닌 천체의 투명도
+  focusHysteresis: 2,   // 안내 대상을 바꾸려면 이만큼(°) 더 가까워야 해요. 두 천체 사이에서 깜빡임 방지
   defaultOffset: -9,    // 한국 기준 자기편각(°). 진북 방위 = 자북 방위 + 편각
   defaultLocation: { lat: 37.5665, lon: 126.978, name: '서울' }, // GPS를 못 받을 때
   smoothing: 0.2,       // 센서 흔들림 완화 (0~1, 클수록 빠르게 반응)
@@ -60,7 +61,7 @@ const bodyById = Object.fromEntries(BODIES.map((b) => [b.id, b]));
 
 const $ = (id) => document.getElementById(id);
 const el = {
-  compass: $('compass'), orbits: $('orbits'), targets: $('targets'),
+  compass: $('compass'), orbits: $('orbits'),
   readout: $('readout'), guide: $('guide'), hint: $('hint'),
   alt: $('alt'), d2Label: $('d2-label'), d2: $('d2'),
   riseLabel: $('rise-label'), rise: $('rise'), setLabel: $('set-label'), set: $('set'),
@@ -110,7 +111,6 @@ const state = {
   notice: null,         // 설정 서랍에 잠깐 띄울 안내
   wasMatch: false,
 };
-state.target = state.enabled.includes(load('target', 'Moon')) ? load('target', 'Moon') : state.enabled[0];
 
 // ---------------------------------------------------------------------------
 // 천문 계산 (core.py MoonEngine의 JS 버전)
@@ -132,6 +132,7 @@ function computeBody(body, date, observer, withEvents) {
     altitude: hor.altitude,        // 지평선 위 고도
     rise: null,
     set: null,
+    hasEvents: Boolean(withEvents),
   };
   if (withEvents) {
     const rise = SearchRiseSet(target, observer, +1, date, 2);
@@ -359,39 +360,25 @@ function createMarker(body) {
     marker.append(dot);
   }
 
+  // 방향이 맞았을 때만 아이콘 위에 나타나는 이름
+  const name = document.createElement('span');
+  name.className = 'marker-name';
+  name.textContent = body.name;
+  marker.append(name);
+
   orbit.append(marker);
   return { orbit, marker, lit };
 }
 
 function rebuildBodies() {
   el.orbits.replaceChildren();
-  el.targets.replaceChildren();
   state.markers = {};
-
-  const ordered = BODIES.filter((b) => state.enabled.includes(b.id));
-  for (const body of ordered) {
+  for (const body of BODIES.filter((b) => state.enabled.includes(b.id))) {
     const m = createMarker(body);
     state.markers[body.id] = m;
     el.orbits.append(m.orbit);
-
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'chip';
-    chip.textContent = body.name;
-    chip.dataset.id = body.id;
-    chip.addEventListener('click', () => selectTarget(body.id));
-    el.targets.append(chip);
   }
-
-  el.targets.hidden = ordered.length <= 1;
   updatePositions();
-}
-
-function selectTarget(id) {
-  state.target = id;
-  state.wasMatch = false;
-  save('target', id);
-  updatePositions(); // 출몰 시각은 안내 중인 천체만 계산하므로 다시 계산
 }
 
 function buildBodyOptions() {
@@ -467,7 +454,7 @@ function toggleBody(id, input) {
     input.checked = true;
     return;
   }
-  setEnabled(next, input.checked ? id : null);
+  setEnabled(next);
 }
 
 // 카테고리 전체 선택/해제. 이미 다 켜져 있으면 해제, 아니면 전부 켜요.
@@ -476,15 +463,12 @@ function toggleGroup(groupId) {
   const allOn = ids.every((id) => state.enabled.includes(id));
   let next = allOn ? state.enabled.filter((id) => !ids.includes(id)) : [...state.enabled, ...ids];
   if (!next.length) next = ['Moon']; // 전부 꺼지면 달은 남겨요
-  setEnabled(next, allOn ? null : ids.find((id) => !state.enabled.includes(id)));
+  setEnabled(next);
 }
 
-function setEnabled(ids, preferredTarget) {
+function setEnabled(ids) {
   state.enabled = BODIES.map((b) => b.id).filter((id) => ids.includes(id)); // 목록 순서 유지
   save('bodies', state.enabled);
-  if (preferredTarget) state.target = preferredTarget;
-  else if (!state.enabled.includes(state.target)) state.target = state.enabled[0];
-  save('target', state.target);
   for (const input of el.bodyOptions.querySelectorAll('input[type="checkbox"]')) {
     input.checked = state.enabled.includes(input.value);
   }
@@ -501,7 +485,7 @@ function updatePositions() {
   const observer = new Astronomy.Observer(state.lat, state.lon, 0);
   state.positions = {};
   for (const id of state.enabled) {
-    state.positions[id] = computeBody(bodyById[id], date, observer, id === state.target);
+    state.positions[id] = computeBody(bodyById[id], date, observer, false);
   }
   const moon = state.positions.Moon;
   if (moon) state.markers.Moon.lit.setAttribute('d', moonPath(moon.cycle));
@@ -525,21 +509,56 @@ function levelFor(diff) {
   return { level: 'idle', opacity: CONFIG.idleOpacity };
 }
 
-function render() {
-  const target = state.positions[state.target];
-  if (!target) return;
+// 출몰 시각 검색은 무거워서, 안내 대상이 정해질 때 그 천체만 계산해요.
+function ensureEvents(id) {
+  const pos = state.positions[id];
+  if (!pos || pos.hasEvents) return;
+  const observer = new Astronomy.Observer(state.lat, state.lon, 0);
+  Object.assign(pos, computeBody(bodyById[id], targetTime(), observer, true));
+}
 
+// 안내 대상 = 폰이 가리키는 방향에서 가장 가까운 천체.
+// 지평선 위에 있는 천체를 우선하고, 하나도 없을 때만 지평선 아래까지 봐요.
+function pickFocus(relatives) {
+  const ids = Object.keys(relatives);
+  const visible = ids.filter((id) => state.positions[id].altitude >= 0);
+  const candidates = visible.length ? visible : ids;
+  let nearest = null;
+  for (const id of candidates) {
+    if (nearest == null || Math.abs(relatives[id]) < Math.abs(relatives[nearest])) nearest = id;
+  }
+  const current = state.target;
+  if (candidates.includes(current) &&
+      Math.abs(relatives[nearest]) > Math.abs(relatives[current]) - CONFIG.focusHysteresis) {
+    return current;
+  }
+  return nearest;
+}
+
+function render() {
   const heading = currentHeading();
   const lat = state.lat;
 
+  const relatives = {};  // id → 상대 방위 (+면 오른쪽에 있음)
+  for (const id of state.enabled) {
+    if (state.positions[id]) relatives[id] = signedDiff(state.positions[id].azimuth, heading);
+  }
+  const focus = pickFocus(relatives);
+  if (!focus) return;
+  if (focus !== state.target) {
+    state.target = focus;
+    state.wasMatch = false;
+  }
+  ensureEvents(focus);
+  const target = state.positions[focus];
+  const targetRelative = relatives[focus];
+
   // 모든 천체 마커 회전
-  let targetRelative = 0;
   for (const id of state.enabled) {
     const pos = state.positions[id];
     const m = state.markers[id];
     if (!pos || !m) continue;
-    const relative = signedDiff(pos.azimuth, heading); // +면 오른쪽에 있음
-    if (id === state.target) targetRelative = relative;
+    const relative = relatives[id];
 
     // 누적 각도로 이어 붙여서 0°/360° 경계에서 튀지 않게 해요.
     const prev = state.orbitAngles[id] ?? relative;
@@ -570,10 +589,6 @@ function render() {
   const isMatch = level === 'match';
   if (isMatch && !state.wasMatch) navigator.vibrate?.(40);
   state.wasMatch = isMatch;
-
-  for (const chip of el.targets.children) {
-    chip.setAttribute('aria-pressed', String(chip.dataset.id === state.target));
-  }
 
   const body = bodyById[state.target];
   // 여러 천체를 켰을 때만 이름을 앞에 붙여요 (궤도 위에는 이름표를 두지 않아요)

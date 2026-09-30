@@ -5,6 +5,7 @@
   --text: #fff;
   --muted: rgba(255, 255, 255, 0.55);
   --line: rgba(255, 255, 255, 0.16);
+  --slider: #5c5c5c;      /* 시간 막대: 구분선보다 조금 밝고, 선과 점이 같은 불투명 색 */
   --idle: #fff;           /* COMPASS_COLOR_DEFAULT */
   --match: #ffea00;       /* COMPASS_COLOR_MATCH (YELLOW_ACCENT_400) */
   --moon-dark: #212121;   /* MOON_COLOR_DARK (GREY_900) */
@@ -76,18 +77,6 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
 }
 .icon-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 
-/* ---------- Target chips ---------- */
-.targets {
-  display: flex;
-  gap: 6px;
-  flex: none;
-  padding: 4px 16px 2px;
-  margin: 0 -16px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.targets::-webkit-scrollbar { display: none; }
-.targets::before, .targets::after { content: ""; margin: auto; } /* 적을 땐 가운데 정렬 */
 .chip {
   padding: 5px 12px;
   border: 1px solid var(--line);
@@ -113,9 +102,10 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
 
 .compass {
   position: relative;
-  width: min(100cqw, 100cqh, 360px);
+  width: min(100cqw, calc(100cqh - 24px), 360px); /* 위쪽 24px은 방향이 맞을 때 뜨는 이름 자리 */
   aspect-ratio: 1;
   color: var(--idle);
+  transition: color 0.3s ease-out; /* 삼각형과 원이 currentColor를 함께 써서 동시에 바뀌어요 */
 }
 .compass[data-level="match"] { color: var(--match); }
 
@@ -133,7 +123,7 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
   border: 2px solid currentColor;
   border-radius: 50%;
   background: var(--bg);
-  transition: border-width 0.3s ease-out, color 0.3s ease-out;
+  transition: border-width 0.3s ease-out;
 }
 .compass[data-level="match"] .ring { border-width: 3px; }
 
@@ -199,6 +189,18 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
   background: radial-gradient(circle, var(--body-color) 0 25%, transparent 70%);
 }
 .orbit.selected .nebula { box-shadow: 0 0 0 1.5px currentColor; }
+.marker-name {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+}
+.compass[data-level="match"] .orbit.selected .marker-name { opacity: 1; }
 .orbit.selected .planet { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px currentColor; }
 
 /* ---------- Readout ---------- */
@@ -260,8 +262,8 @@ input[type="range"] {
   background: transparent;
   cursor: pointer;
 }
-input[type="range"]::-webkit-slider-runnable-track { height: 2px; border-radius: 1px; background: var(--line); }
-input[type="range"]::-moz-range-track { height: 2px; border-radius: 1px; background: var(--line); }
+input[type="range"]::-webkit-slider-runnable-track { height: 2px; border-radius: 1px; background: var(--slider); }
+input[type="range"]::-moz-range-track { height: 2px; border-radius: 1px; background: var(--slider); }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 12px;
@@ -269,9 +271,9 @@ input[type="range"]::-webkit-slider-thumb {
   margin-top: -5px;
   border: 0;
   border-radius: 50%;
-  background: var(--muted);
+  background: var(--slider);
 }
-input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: var(--muted); }
+input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: var(--slider); }
 
 /* ---------- Drawer (settings) ---------- */
 .drawer { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
