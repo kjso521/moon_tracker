@@ -19,6 +19,7 @@ const COMPASS = {
   liftPer90: 1.1,       // 고도 90°일 때 떠오르는 높이 (원 반지름 대비)
   maxTiltView: 72,      // 폰을 완전히 세워도 원판이 선이 되지 않게 시점 기울기를 제한(°)
   focal: 700,           // 원근감 (작을수록 강함)
+  morphMs: 450,         // 3D 켜기/끄기 때 평면 ↔ 원판으로 바뀌는 시간
 };
 
 // 카테고리 → 설정 서랍에서 접었다 펼 수 있는 묶음
@@ -113,6 +114,8 @@ const state = {
   simTilt: 0,
   mode3d: load('mode3d', true),
   size: 0,              // 나침반 SVG 한 변(px)
+  viewRatio: 0,         // 지금 화면에 그려진 기울기 비율 (0 평면 ~ 1 세움)
+  morph: null,          // 3D 켜기/끄기 전환 애니메이션 { from, start }
   sensor: '대기 중',
   sensorSeen: false,
   simHeading: 0,
@@ -573,12 +576,29 @@ function namedBodies(relatives) {
 // ---------------------------------------------------------------------------
 
 const currentTilt = () => (state.sensorSeen ? state.tilt : state.simTilt);
+const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+
+// 3D를 켜고 끌 때 기울기를 한 번에 바꾸지 않고 morphMs 동안 부드럽게 옮겨요(모핑).
+// 목표값(센서 기울기)이 그 사이에 바뀌어도 따라가도록 매 프레임 목표를 다시 읽어요.
+function viewRatio() {
+  const target = state.mode3d ? currentTilt() / 90 : 0;
+  let ratio = target;
+  if (state.morph) {
+    const p = Math.min(1, (performance.now() - state.morph.start) / COMPASS.morphMs);
+    const eased = p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2;  // ease-in-out
+    ratio = state.morph.from + (target - state.morph.from) * eased;
+    if (p < 1) scheduleRender();
+    else state.morph = null;
+  }
+  state.viewRatio = ratio;
+  return ratio;
+}
 
 function drawCompass(relatives, named, opacity) {
   const w = state.size;
   if (!w) return;
   const R = w / 2 - (COMPASS.marker + COMPASS.gap);
-  const ratio = state.mode3d ? currentTilt() / 90 : 0;           // 0 = 평면, 1 = 완전히 세움
+  const ratio = viewRatio();                                     // 0 = 평면, 1 = 완전히 세움
   const t = ratio * COMPASS.maxTiltView * Math.PI / 180;
   const cosT = Math.cos(t), sinT = Math.sin(t);
   const liftMax = R * COMPASS.liftPer90;
@@ -811,6 +831,7 @@ function scheduleUpdate() {
 el.mode3d.setAttribute('aria-pressed', String(state.mode3d));
 el.simTiltRow.hidden = !state.mode3d;
 el.mode3d.addEventListener('click', () => {
+  if (!reduceMotion?.matches) state.morph = { from: state.viewRatio, start: performance.now() };
   state.mode3d = !state.mode3d;
   el.mode3d.setAttribute('aria-pressed', String(state.mode3d));
   save('mode3d', state.mode3d);
