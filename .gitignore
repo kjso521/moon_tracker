@@ -1,21 +1,8 @@
-# 비밀 정보 — 절대 커밋하지 않기
-githubtoken.txt
-*.token
-.env
-
-# Python
-venv/
-__pycache__/
-*.pyc
-
-# Flet 실행/빌드 산출물
-storage/
-build/
-
-# macOS
-.DS_Store
-
-
-# PC에만 두는 파일 — GitHub에는 웹앱(web/)과 README만 올려요
+# GitHub에는 웹앱(web/)과 README만 올려요. 나머지는 PC 전용입니다.
 _local/
 CLAUDE.md
+venv/
+
+# 자동 생성 파일
+.DS_Store
+__pycache__/
