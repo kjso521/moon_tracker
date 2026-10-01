@@ -42,11 +42,14 @@ function renderSheet() {
   sheet.title.textContent = body.name;
   sheet.sub.textContent = guide.sub ?? '';
   sheet.text.textContent = guide.text ?? '';
+  if (body.group === 'zodiac') {
+    sheet.text.textContent += ' 탄생 별자리는 생일 무렵 태양과 같은 방향에 있어 보이지 않으며, 생일에서 몇 달 지난 저녁에 잘 보입니다.';
+  }
   sheet.caption.textContent = '';
   sheet.figure.replaceChildren();
 
   let rows;
-  if (body.group === 'constellation') rows = constellationCard(body, guide, pos);
+  if (isConstellation(body)) rows = constellationCard(body, guide, pos);
   else if (body.group === 'deepsky') rows = deepSkyCard(body, guide, pos);
   else if (id === 'Moon') rows = moonCard(pos, date);
   else if (id === 'Sun') rows = sunCard(observer, date);

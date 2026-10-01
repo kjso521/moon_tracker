@@ -376,6 +376,8 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 0; bo
 .body-options label { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: var(--fs-body); cursor: pointer; }
 .body-options input { width: 18px; height: 18px; margin: 0; accent-color: var(--match); }
 .swatch { width: 10px; height: 10px; border-radius: 50%; background: var(--body-color); }
+.body-options.one-col { grid-template-columns: 1fr; }
+.birth { margin-left: auto; font-size: var(--fs-caption); color: var(--muted); font-variant-numeric: tabular-nums; }
 
 .note { margin: 0 0 8px; font-size: var(--fs-caption); line-height: 1.6; color: var(--muted); }
 

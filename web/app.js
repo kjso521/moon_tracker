@@ -25,16 +25,21 @@ const COMPASS = {
 // 카테고리 → 설정 서랍에서 접었다 펼 수 있는 묶음
 const GROUPS = [
   { id: 'solar', name: '태양계', open: true },
+  { id: 'zodiac', name: '탄생 별자리' },
   { id: 'constellation', name: '별자리' },
   { id: 'deepsky', name: '성운·은하' },
 ];
 
 // 태양계 천체의 id는 Astronomy.Body의 이름과 같아요.
 // 별자리와 성운·은하는 고정된 좌표(J2000 적경 ra[시], 적위 dec[°])의 기준점 하나로 방향을 잡아요.
+// 기준점은 항상 실제 별로 정해요. 빈 하늘을 기준으로 하면 방향이 맞았는지 눈으로 확인할 수 없고,
+// "지금 방향으로 보정"도 정확히 겨눌 대상이 없어 틀어져요. (좌표는 별 목록과 0.01° 안으로 대조함)
 const STAR_COLOR = '#cfd8ff';
 const DEEPSKY_COLOR = '#e1bee7';
 const star = (id, name, season, ra, dec, ref) => ({ id, name, season, ra, dec, ref, group: 'constellation', color: STAR_COLOR });
+const zodiac = (id, name, birth, ra, dec, ref) => ({ id, name, birth, ra, dec, ref, group: 'zodiac', color: STAR_COLOR });
 const deepsky = (id, name, ra, dec, ref) => ({ id, name, ra, dec, ref, group: 'deepsky', color: DEEPSKY_COLOR });
+const isConstellation = (body) => body.group === 'constellation' || body.group === 'zodiac';
 
 const BODIES = [
   { id: 'Moon',    name: '달',   group: 'solar', riseLabel: '월출', setLabel: '월몰' },
@@ -45,23 +50,31 @@ const BODIES = [
   { id: 'Jupiter', name: '목성', group: 'solar', color: '#ffe0b2' },
   { id: 'Saturn',  name: '토성', group: 'solar', color: '#ffd54f' },
 
-  star('Polaris',     '북극성',       '사계절',  2.530,  89.26, '북극성 (작은곰자리)'),
-  star('BigDipper',   '북두칠성',     '사계절', 12.334,  55.58, '국자 중심 (큰곰자리)'),
-  star('Cassiopeia',  '카시오페이아', '사계절',  0.945,  60.72, 'W자 가운데 별'),
-  star('Leo',         '사자자리',     '봄',     10.139,  11.97, '레굴루스'),
-  star('Bootes',      '목동자리',     '봄',     14.261,  19.18, '아르크투루스'),
-  star('Virgo',       '처녀자리',     '봄',     13.420, -11.16, '스피카'),
-  star('Lyra',        '거문고자리',   '여름',   18.616,  38.78, '베가 (직녀성)'),
-  star('Aquila',      '독수리자리',   '여름',   19.846,   8.87, '알타이르 (견우성)'),
-  star('Cygnus',      '백조자리',     '여름',   20.690,  45.28, '데네브'),
-  star('Scorpius',    '전갈자리',     '여름',   16.490, -26.43, '안타레스'),
-  star('Sagittarius', '궁수자리',     '여름',   18.650, -28.90, '주전자 모양 중심'),
-  star('Pegasus',     '페가수스자리', '가을',   23.626,  21.89, '가을철 대사각형 중심'),
-  star('Andromeda',   '안드로메다자리', '가을',  1.162,  35.62, '미라크'),
-  star('Orion',       '오리온자리',   '겨울',    5.604,  -1.20, '벨트(삼태성) 가운데'),
-  star('Taurus',      '황소자리',     '겨울',    4.599,  16.51, '알데바란'),
-  star('Gemini',      '쌍둥이자리',   '겨울',    7.666,  29.96, '카스토르·폴룩스 사이'),
-  star('CanisMajor',  '큰개자리',     '겨울',    6.752, -16.72, '시리우스'),
+  // 탄생 별자리 (황도 12궁) — 생일 순서
+  zodiac('Aquarius',    '물병자리',   '1.20–2.18',   21.526,  -5.571, '사달수드'),
+  zodiac('Pisces',      '물고기자리', '2.19–3.20',    1.525,  15.346, '알페르그'),
+  zodiac('Aries',       '양자리',     '3.21–4.19',    2.1196, 23.462, '하말'),
+  zodiac('Taurus',      '황소자리',   '4.20–5.20',    4.599,  16.51,  '알데바란'),
+  zodiac('Gemini',      '쌍둥이자리', '5.21–6.21',    7.755,  28.026, '폴룩스'),
+  zodiac('Cancer',      '게자리',     '6.22–7.22',    8.2753,  9.1856, '알타르프'),
+  zodiac('Leo',         '사자자리',   '7.23–8.22',   10.139,  11.97,  '레굴루스'),
+  zodiac('Virgo',       '처녀자리',   '8.23–9.22',   13.420, -11.16,  '스피카'),
+  zodiac('Libra',       '천칭자리',   '9.23–10.22',  15.283,  -9.383, '주베네샤말리'),
+  zodiac('Scorpius',    '전갈자리',   '10.23–11.22', 16.490, -26.43,  '안타레스'),
+  zodiac('Sagittarius', '궁수자리',   '11.23–12.21', 18.403, -34.384, '카우스 아우스트랄리스'),
+  zodiac('Capricornus', '염소자리',   '12.22–1.19',  21.784, -16.127, '데네브 알게디'),
+
+  star('Polaris',     '북극성',         '사계절',  2.530,  89.26,  '북극성 (작은곰자리)'),
+  star('BigDipper',   '북두칠성',       '사계절', 12.257,  57.033, '메그레즈 (국자와 손잡이 사이)'),
+  star('Cassiopeia',  '카시오페이아',   '사계절',  0.945,  60.72,  'W자 가운데 별'),
+  star('Bootes',      '목동자리',       '봄',     14.261,  19.18,  '아르크투루스'),
+  star('Lyra',        '거문고자리',     '여름',   18.616,  38.78,  '베가 (직녀성)'),
+  star('Aquila',      '독수리자리',     '여름',   19.846,   8.87,  '알타이르 (견우성)'),
+  star('Cygnus',      '백조자리',       '여름',   20.690,  45.28,  '데네브'),
+  star('Pegasus',     '페가수스자리',   '가을',   23.0793, 15.205, '마르카브'),
+  star('Andromeda',   '안드로메다자리', '가을',    1.162,  35.62,  '미라크'),
+  star('Orion',       '오리온자리',     '겨울',    5.604,  -1.20,  '알닐람 (삼태성 가운데 별)'),
+  star('CanisMajor',  '큰개자리',       '겨울',    6.752, -16.72,  '시리우스'),
 
   deepsky('MilkyWayCore', '은하수 중심',     17.761, -29.01, '궁수자리 A*'),
   deepsky('M31',          '안드로메다 은하',  0.712,  41.27, 'M31'),
@@ -435,7 +448,7 @@ function createMarker(body) {
     focusRadius = 10.25;            // 포커스 원 r 9.5 + 선 굵기 절반
     svgEl('circle', { r: 6, fill: body.color }, shape);
     svgEl('circle', { class: 'focus-ring', r: 9.5 }, shape);
-  } else if (body.group === 'constellation') {
+  } else if (isConstellation(body)) {
     radius = 7;
     focusRadius = 7 * 1.5;          // 안내 대상이면 1.5배로 커져요
     svgEl('path', { d: SPARKLE, fill: body.color, transform: 'scale(7)' }, shape);
@@ -447,7 +460,7 @@ function createMarker(body) {
   }
   const label = svgEl('text', { class: 'body-name' }, g);
   label.textContent = body.name;
-  return { g, stalk, foot, icon, shape, lit, label, radius, focusRadius, sparkle: body.group === 'constellation' };
+  return { g, stalk, foot, icon, shape, lit, label, radius, focusRadius, sparkle: isConstellation(body) };
 }
 
 function rebuildBodies() {
@@ -475,7 +488,7 @@ function buildBodyOptions() {
     summary.append(title, count);
 
     const list = document.createElement('div');
-    list.className = 'body-options';
+    list.className = group.id === 'zodiac' ? 'body-options one-col' : 'body-options';
     const all = document.createElement('button');
     all.type = 'button';
     all.className = 'group-all';
@@ -526,6 +539,12 @@ function createBodyOption(body) {
   swatch.style.setProperty('--body-color', body.color ?? '#fff');
 
   label.append(input, swatch, body.name);
+  if (body.birth) {                       // 탄생 별자리는 생일 범위를 함께 보여줘요
+    const birth = document.createElement('span');
+    birth.className = 'birth';
+    birth.textContent = body.birth;
+    label.append(birth);
+  }
   return label;
 }
 
