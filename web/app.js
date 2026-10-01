@@ -626,7 +626,6 @@ function drawCompass(relatives, labelLevels, opacity) {
   const Rm = R + COMPASS.gap + COMPASS.marker / 2;
   const flipMoon = state.lat < 0;                                // 남반구에서는 달의 좌우가 뒤집혀 보여요
   const depthOrder = [];
-  const named = [];
   for (const id of state.enabled) {
     const pos = state.positions[id];
     const m = state.markers[id];
@@ -650,12 +649,14 @@ function drawCompass(relatives, labelLevels, opacity) {
     m.foot.setAttribute('rx', (2.2 * foot.k).toFixed(2)); m.foot.setAttribute('ry', (2.2 * foot.k * cosT).toFixed(2));
     m.foot.style.opacity = (0.5 * ratio).toFixed(3);
 
+    // 이름표: 각자 아이콘 바로 위. 가까운 천체끼리는 층을 나눠 쌓고,
+    // 안내 대상은 맨 마지막에 그려서 겹쳐도 밝은 이름이 위에 와요.
     const labelLevel = labelLevels[id];
-    m.label.setAttribute('x', top.x.toFixed(2));
     m.g.classList.toggle('named', labelLevel != null);
     if (labelLevel != null) {
-      // 이름표가 올라갈 자리: 아이콘 윗끝
-      named.push({ m, rel: relatives[id], level: labelLevel, topY: top.y - (m.radius * (isFocus && m.sparkle ? 1.5 : 1) + 4) * top.k });
+      const iconTop = top.y - (m.radius * (isFocus && m.sparkle ? 1.5 : 1) + 4) * top.k;
+      m.label.setAttribute('x', top.x.toFixed(2));
+      m.label.setAttribute('y', (iconTop - labelLevel * COMPASS.labelGap).toFixed(2));
     }
     m.g.classList.toggle('focus', isFocus);
 
@@ -663,15 +664,6 @@ function drawCompass(relatives, labelLevels, opacity) {
     m.g.style.opacity = (pos.altitude < 0 ? baseOpacity * 0.45 : baseOpacity).toFixed(3); // 지평선 아래는 흐리게
     depthOrder.push({ m, key: isFocus ? Infinity : top.depth });  // 먼 것부터, 안내 대상은 맨 위
   }
-  // 이름표 층: 서로 가까운 천체끼리는 가장 높은 아이콘을 공통 기준선으로 쌓아요.
-  // (3D에서는 천체마다 떠오른 높이가 달라서, 각자 기준으로 쌓으면 이름이 겹쳐요)
-  for (const n of named) {
-    const baseline = Math.min(...named
-      .filter((o) => Math.abs(o.rel - n.rel) < CONFIG.labelSepDeg)
-      .map((o) => o.topY));
-    n.m.label.setAttribute('y', (baseline - n.level * COMPASS.labelGap).toFixed(2));
-  }
-
   depthOrder.sort((p, q) => p.key - q.key);
   const order = depthOrder.map((o) => o.m.g);
   if (order.some((g, i) => el.orbits.children[i] !== g)) el.orbits.append(...order);
