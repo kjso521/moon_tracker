@@ -32,11 +32,21 @@
 
     <section class="stage">
       <div id="compass" class="compass" data-level="idle">
-        <div class="face">
-          <svg class="arrow" viewBox="0 0 12 7" aria-hidden="true"><path d="M6 0 12 7H0z"/></svg>
-          <div class="ring"></div>
-        </div>
-        <div id="orbits"></div>
+        <!-- 나침반은 3D 좌표를 화면에 투영해서 그려요. 폰을 눕히면(또는 3D 끔) 위에서 내려다본 평면 그대로예요. -->
+        <svg id="compass-svg" aria-hidden="true">
+          <defs>
+            <radialGradient id="nebula-glow">
+              <stop offset="25%" stop-color="#e1bee7"/>
+              <stop offset="100%" stop-color="#e1bee7" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <g id="face">
+            <path id="arrow"/>
+            <path id="disc"/>
+            <path id="ring"/>
+          </g>
+          <g id="orbits"></g>
+        </svg>
       </div>
     </section>
 
@@ -58,6 +68,10 @@
     <section id="sim" class="sim" hidden>
       <label for="sim-slider">방향 시뮬레이션 <span id="sim-value">0° N</span></label>
       <input id="sim-slider" type="range" min="0" max="359" value="0">
+      <div id="sim-tilt-row">
+        <label for="sim-tilt">기울기 시뮬레이션 <span id="sim-tilt-value">0°</span></label>
+        <input id="sim-tilt" type="range" min="0" max="90" value="0">
+      </div>
     </section>
 
     <footer class="timebar">
@@ -83,8 +97,16 @@
       </header>
 
       <section>
-        <h3>천체 표시</h3>
+        <h3 class="section-title">천체 표시 <button id="all-bodies" class="group-all" type="button"></button></h3>
         <div id="body-options"></div>
+      </section>
+
+      <section>
+        <label class="switch-row">
+          <span class="switch-title">3D 나침반</span>
+          <input id="mode-3d" type="checkbox" role="switch">
+        </label>
+        <p class="note">폰을 세우면 나침반이 바닥에 놓인 원판처럼 눕고, 천체가 고도만큼 떠올라요.</p>
       </section>
 
       <section>

@@ -2,7 +2,7 @@
 // 출사 장소는 인터넷이 약한 경우가 많아서, 3초 안에 응답이 없으면 캐시를 먼저 써요.
 // GitHub Pages는 max-age=600을 보내요. 브라우저 HTTP 캐시를 거치면 배포 후 최대 10분간 옛 파일이 보이므로,
 // 설치할 때는 cache: 'reload'(항상 새로 받기), 평소에는 cache: 'no-cache'(서버에 변경 여부 확인)로 받아요.
-const CACHE = 'moon-tracker-v6';
+const CACHE = 'moon-tracker-v7';
 const SHELL = [
   './', './index.html', './style.css', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png',

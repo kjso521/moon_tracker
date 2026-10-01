@@ -9,9 +9,6 @@
   --idle: #fff;           /* COMPASS_COLOR_DEFAULT */
   --match: #ffea00;       /* COMPASS_COLOR_MATCH (YELLOW_ACCENT_400) */
   --moon-dark: #212121;   /* MOON_COLOR_DARK (GREY_900) */
-  --marker: 28px;         /* 달 아이콘 크기 */
-  --gap: 12px;            /* 나침반 원과 천체 사이 간격 */
-  --orbit-pad: calc(var(--gap) + var(--marker)); /* 천체가 원 밖을 돌 공간 */
 
   /* 글자 크기는 이 세 가지만 써요. 새 요소도 여기서 고르기 */
   --fs-title: 17px;     /* 앱 제목, 방위 숫자, 설정 제목 */
@@ -109,99 +106,32 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
 }
 .compass[data-level="match"] { color: var(--match); }
 
-.face {
-  position: absolute;
-  inset: var(--orbit-pad);
-  opacity: var(--opacity, 0.24);
-  transition: opacity 0.3s ease-out;
-}
+/* 나침반 전체를 SVG 하나로 그려요. 크기·위치는 app.js가 3D 투영으로 계산해요. */
+#compass-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 
-.ring {
-  position: absolute;
-  inset: 0;
-  z-index: 1;             /* 삼각형 위에 올려서, 원 안쪽으로 들어간 부분을 가려요 */
-  border: 2px solid currentColor;
-  border-radius: 50%;
-  background: var(--bg);
-  transition: border-width 0.3s ease-out;
-}
-.compass[data-level="match"] .ring { border-width: 3px; }
+#face { opacity: var(--opacity, 0.24); transition: opacity 0.3s ease-out; }
+#ring { fill: none; stroke: currentColor; stroke-width: 2; transition: stroke-width 0.3s ease-out; }
+.compass[data-level="match"] #ring { stroke-width: 3; }
+#arrow { fill: currentColor; }
+/* #disc는 원 안쪽을 채워서 원 안으로 들어간 삼각형 밑변을 가려요. 세울수록 짙은 회색 원판이 돼요. */
 
-.arrow {
-  position: absolute;
-  top: -6px;              /* 밑변 2px이 원 테두리에 겹치도록 */
-  left: 50%;
-  width: 14px;
-  transform: translateX(-50%);
-  fill: currentColor;
-}
-
-/* 천체마다 하나씩. 방위 차이만큼 회전하고, JS가 transform을 직접 넣어요. */
-.orbit {
-  position: absolute;
-  inset: var(--orbit-pad);
-  pointer-events: none;
-}
-
-.marker {
-  position: absolute;
-  top: calc(-1 * var(--orbit-pad));
-  left: 50%;
-  width: var(--marker);
-  height: var(--marker);
-  margin-left: calc(var(--marker) / -2);
-  color: var(--idle);
-  transition: opacity 0.3s ease-out, color 0.3s ease-out;
-}
-.compass[data-level="match"] .orbit.selected .marker { color: var(--match); }
-
-.marker svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.body { color: var(--idle); transition: opacity 0.3s ease-out, color 0.3s ease-out; }
+.compass[data-level="match"] .body.focus { color: var(--match); }
 .moon-dark { fill: var(--moon-dark); }
 .moon-lit { fill: currentColor; }
-
-.planet {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  width: 12px;
-  height: 12px;
-  margin: -6px 0 0 -6px;
-  border-radius: 50%;
-  background: var(--body-color);
-}
-.star {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  width: 14px;
-  height: 14px;
-  margin: -7px 0 0 -7px;
-  background: var(--body-color);
-  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
-  transition: transform 0.3s ease-out;
-}
-.orbit.selected .star { transform: scale(1.5); }
-.nebula {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  width: 16px;
-  height: 16px;
-  margin: -8px 0 0 -8px;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--body-color) 0 25%, transparent 70%);
-}
-.orbit.selected .nebula { box-shadow: 0 0 0 1.5px currentColor; }
-.marker-name {
-  position: absolute;
-  bottom: calc(100% + 3px + var(--label-level, 0) * 15px);
-  left: 50%;
-  transform: translateX(-50%);
+.focus-ring { fill: none; stroke: currentColor; stroke-width: 1.5; opacity: 0; }
+.body.focus .focus-ring { opacity: 1; }
+.stalk { stroke: #fff; stroke-opacity: 0.35; stroke-width: 1; stroke-dasharray: 2 3; }
+.foot { fill: #fff; }
+.body-name {
   font-size: var(--fs-caption);
   font-weight: 500;
-  white-space: nowrap;
+  fill: currentColor;
+  text-anchor: middle;
   opacity: 0;
   transition: opacity 0.3s ease-out;
 }
-.marker.named .marker-name { opacity: 1; }
-.orbit.selected .planet { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px currentColor; }
+.body.named .body-name { opacity: 1; }
 
 /* ---------- Readout ---------- */
 .info { flex: none; padding-top: 4px; }
@@ -306,6 +236,38 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 0; bo
 .drawer-panel section:last-child { border-bottom: 0; }
 .drawer-panel h3 { margin: 0 0 8px; font-size: var(--fs-body); font-weight: 500; }
 #offset-label { color: var(--muted); font-weight: 400; }
+.section-title { display: flex; align-items: center; justify-content: space-between; }
+.section-title .group-all { padding: 0 !important; }
+
+/* 켜고 끄는 스위치 */
+.switch-row { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+.switch-title { font-size: var(--fs-body); font-weight: 500; }
+.switch-row input {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  border-radius: 11px;
+  background: var(--slider);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.switch-row input::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform 0.2s;
+}
+.switch-row input:checked { background: var(--match); }
+.switch-row input:checked::after { transform: translateX(16px); background: var(--bg); }
+.switch-row + .note { margin-top: 8px; }
 #drawer-status { white-space: pre-line; }
 
 .group { border-top: 1px solid var(--line); }

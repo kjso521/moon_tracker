@@ -14,6 +14,16 @@ const CONFIG = {
   refreshMs: 30_000,
 };
 
+// 나침반 그리기 (단위: px). 3D 모드에서는 폰을 세운 만큼 시점을 기울여 투영해요.
+const COMPASS = {
+  marker: 28,           // 달 아이콘 지름
+  gap: 12,              // 원과 천체 아이콘 사이 간격
+  liftPer90: 1.1,       // 고도 90°일 때 떠오르는 높이 (원 반지름 대비)
+  maxTiltView: 72,      // 폰을 완전히 세워도 원판이 선이 되지 않게 시점 기울기를 제한(°)
+  focal: 700,           // 원근감 (작을수록 강함)
+  labelGap: 15,         // 이름표 층 간격
+};
+
 // 카테고리 → 설정 서랍에서 접었다 펼 수 있는 묶음
 const GROUPS = [
   { id: 'solar', name: '태양계', open: true },
@@ -63,7 +73,10 @@ const bodyById = Object.fromEntries(BODIES.map((b) => [b.id, b]));
 
 const $ = (id) => document.getElementById(id);
 const el = {
-  compass: $('compass'), orbits: $('orbits'),
+  compass: $('compass'), svg: $('compass-svg'), orbits: $('orbits'),
+  face: $('face'), ring: $('ring'), disc: $('disc'), arrow: $('arrow'),
+  simTiltRow: $('sim-tilt-row'), simTilt: $('sim-tilt'), simTiltValue: $('sim-tilt-value'),
+  mode3d: $('mode-3d'), allBodies: $('all-bodies'),
   readout: $('readout'), guide: $('guide'), hint: $('hint'),
   alt: $('alt'), d2Label: $('d2-label'), d2: $('d2'),
   riseLabel: $('rise-label'), rise: $('rise'), setLabel: $('set-label'), set: $('set'),
@@ -99,6 +112,10 @@ const state = {
   locationOk: false,
   magHeading: null,     // 센서가 준 자북 기준 방위 (스무딩 적용)
   pitch: null,          // 후면 카메라가 향하는 고도. 폰을 세웠을 때만 값이 있음
+  tilt: 0,              // 폰을 세운 정도 (0 눕힘 ~ 90 세움). 3D 나침반에 사용
+  simTilt: 0,
+  mode3d: load('mode3d', true),
+  size: 0,              // 나침반 SVG 한 변(px)
   sensor: '대기 중',
   sensorSeen: false,
   simHeading: 0,
@@ -108,7 +125,6 @@ const state = {
   anchor: null,         // 날짜 선택기로 고른 기준 시각. null이면 "지금"
   shiftMin: 0,          // 시간 막대로 옮긴 분
   positions: {},        // id → 계산 결과
-  orbitAngles: {},      // id → 누적 회전각. 359°→0°에서 한 바퀴 도는 걸 막아요
   markers: {},          // id → DOM
   notice: null,         // 설정 서랍에 잠깐 띄울 안내
   wasMatch: false,
@@ -262,6 +278,8 @@ function onOrientation(e) {
   }
   state.magHeading = smoothAngle(state.magHeading, aim.heading);
   state.pitch = aim.pitch;
+  const tilt = Math.max(0, Math.min(90, e.beta ?? 0));
+  state.tilt += (tilt - state.tilt) * CONFIG.smoothing;
   scheduleRender();
 }
 
@@ -335,41 +353,44 @@ function startGeolocation() {
 // ---------------------------------------------------------------------------
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs, parent) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (parent) parent.append(node);
+  return node;
+}
+const SPARKLE = 'M0,-1 L0.24,-0.24 L1,0 L0.24,0.24 L0,1 L-0.24,0.24 L-1,0 L-0.24,-0.24Z';
 
+// 천체 하나 = 원판 위 발자국(foot) + 점선 기둥(stalk) + 아이콘 + 이름.
+// 아이콘은 항상 화면을 정면으로 보도록(빌보드) 위치만 투영하고 모양은 그대로 그려요.
 function createMarker(body) {
-  const orbit = document.createElement('div');
-  orbit.className = 'orbit';
-  orbit.dataset.id = body.id;
-
-  const marker = document.createElement('div');
-  marker.className = 'marker';
-
+  const g = svgEl('g', { class: 'body' });
+  const stalk = svgEl('line', { class: 'stalk' }, g);
+  const foot = svgEl('ellipse', { class: 'foot' }, g);
+  const icon = svgEl('g', {}, g);
+  const shape = svgEl('g', {}, icon);
   let lit = null;
+  let radius;                       // 이름표를 띄울 높이 계산용
   if (body.id === 'Moon') {
-    const svg = document.createElementNS(SVG_NS, 'svg');
-    svg.setAttribute('viewBox', '-1.05 -1.05 2.1 2.1');
-    const dark = document.createElementNS(SVG_NS, 'circle');
-    dark.setAttribute('class', 'moon-dark');
-    dark.setAttribute('r', '1');
-    lit = document.createElementNS(SVG_NS, 'path');
-    lit.setAttribute('class', 'moon-lit');
-    svg.append(dark, lit);
-    marker.append(svg);
+    radius = COMPASS.marker / 2;
+    const unit = svgEl('g', { transform: `scale(${radius})` }, shape);
+    svgEl('circle', { class: 'moon-dark', r: 1 }, unit);
+    lit = svgEl('path', { class: 'moon-lit' }, unit);
+  } else if (body.group === 'solar') {
+    radius = 6;
+    svgEl('circle', { r: 6, fill: body.color }, shape);
+    svgEl('circle', { class: 'focus-ring', r: 9.5 }, shape);
+  } else if (body.group === 'constellation') {
+    radius = 7;
+    svgEl('path', { d: SPARKLE, fill: body.color, transform: 'scale(7)' }, shape);
   } else {
-    const dot = document.createElement('span');
-    dot.className = { solar: 'planet', constellation: 'star', deepsky: 'nebula' }[body.group];
-    marker.style.setProperty('--body-color', body.color);
-    marker.append(dot);
+    radius = 8;
+    svgEl('circle', { r: 8, fill: 'url(#nebula-glow)' }, shape);
+    svgEl('circle', { class: 'focus-ring', r: 9.5 }, shape);
   }
-
-  // 방향이 맞았을 때만 아이콘 위에 나타나는 이름
-  const name = document.createElement('span');
-  name.className = 'marker-name';
-  name.textContent = body.name;
-  marker.append(name);
-
-  orbit.append(marker);
-  return { orbit, marker, lit };
+  const label = svgEl('text', { class: 'body-name' }, g);
+  label.textContent = body.name;
+  return { g, stalk, foot, icon, shape, lit, label, radius, sparkle: body.group === 'constellation' };
 }
 
 function rebuildBodies() {
@@ -378,7 +399,7 @@ function rebuildBodies() {
   for (const body of BODIES.filter((b) => state.enabled.includes(b.id))) {
     const m = createMarker(body);
     state.markers[body.id] = m;
-    el.orbits.append(m.orbit);
+    el.orbits.append(m.g);
   }
   updatePositions();
 }
@@ -432,6 +453,7 @@ function updateGroupCounts() {
     const ids = BODIES.filter((b) => b.group === button.dataset.group).map((b) => b.id);
     button.textContent = ids.every((id) => state.enabled.includes(id)) ? '전체 해제' : '전체 선택';
   }
+  el.allBodies.textContent = BODIES.every((b) => state.enabled.includes(b.id)) ? '모두 해제' : '모두 선택';
 }
 
 function createBodyOption(body) {
@@ -466,6 +488,12 @@ function toggleGroup(groupId) {
   let next = allOn ? state.enabled.filter((id) => !ids.includes(id)) : [...state.enabled, ...ids];
   if (!next.length) next = ['Moon']; // 전부 꺼지면 달은 남겨요
   setEnabled(next);
+}
+
+// 모든 천체 전체 선택/해제 (전부 해제하면 달만 남아요)
+function toggleAll() {
+  const allOn = BODIES.every((b) => state.enabled.includes(b.id));
+  setEnabled(allOn ? ['Moon'] : BODIES.map((b) => b.id));
 }
 
 function setEnabled(ids) {
@@ -550,9 +578,107 @@ function assignLabelLevels(relatives) {
   return levels;
 }
 
+// ---------------------------------------------------------------------------
+// 나침반 그리기: 3D → 2D 투영
+// 월드 좌표: x = 오른쪽, y = 앞(폰이 향한 방향), z = 위. 나침반은 z = 0 평면에 놓여 있어요.
+// 폰을 세운 만큼 시점을 x축으로 기울이면, 위에서 내려다보던 원이 바닥에 놓인 원판처럼 보여요.
+// ---------------------------------------------------------------------------
+
+const currentTilt = () => (state.sensorSeen ? state.tilt : state.simTilt);
+
+function drawCompass(relatives, labelLevels, opacity) {
+  const w = state.size;
+  if (!w) return;
+  const R = w / 2 - (COMPASS.marker + COMPASS.gap);
+  const ratio = state.mode3d ? currentTilt() / 90 : 0;           // 0 = 평면, 1 = 완전히 세움
+  const t = ratio * COMPASS.maxTiltView * Math.PI / 180;
+  const cosT = Math.cos(t), sinT = Math.sin(t);
+  const liftMax = R * COMPASS.liftPer90;
+  // 세우면 천체가 원판 위로 떠오르니, 원판을 그 절반 정도만 내려서 전체가 가운데에 오게 해요.
+  const shift = liftMax * sinT / 4;
+
+  const project = (x, y, z) => {
+    const up = y * cosT + z * sinT;
+    const depth = -y * sinT + z * cosT;
+    const k = COMPASS.focal / (COMPASS.focal - depth);
+    return { x: x * k, y: -up * k + shift, k, depth };
+  };
+
+  // 원 + 원판 (96개 점)
+  let d = '';
+  for (let i = 0; i <= 96; i++) {
+    const th = (i / 96) * 2 * Math.PI;
+    const p = project(R * Math.sin(th), R * Math.cos(th), 0);
+    d += `${i ? 'L' : 'M'}${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+  }
+  d += 'Z';
+  el.ring.setAttribute('d', d);
+  el.disc.setAttribute('d', d);
+  const grey = Math.round(27 * ratio);                           // 평면에선 배경색, 세울수록 #1b1b1b
+  el.disc.setAttribute('fill', `rgb(${grey},${grey},${grey})`);
+
+  // 삼각형: 원의 맨 앞(먼 쪽) 점에 밑변이 2px 겹치게. 원판이 겹친 부분을 가려요.
+  const tip = project(0, R, 0);
+  const aw = 7 * tip.k, base = tip.y + 2 * tip.k, apex = tip.y - 6 * tip.k;
+  el.arrow.setAttribute('d', `M${(tip.x - aw).toFixed(2)},${base.toFixed(2)}L${(tip.x + aw).toFixed(2)},${base.toFixed(2)}L${tip.x.toFixed(2)},${apex.toFixed(2)}Z`);
+
+  // 천체
+  const Rm = R + COMPASS.gap + COMPASS.marker / 2;
+  const flipMoon = state.lat < 0;                                // 남반구에서는 달의 좌우가 뒤집혀 보여요
+  const depthOrder = [];
+  const named = [];
+  for (const id of state.enabled) {
+    const pos = state.positions[id];
+    const m = state.markers[id];
+    if (!pos || !m) continue;
+    const a = relatives[id] * Math.PI / 180;
+    const bx = Rm * Math.sin(a), by = Rm * Math.cos(a);
+    const z = (pos.altitude / 90) * liftMax * ratio;
+    const foot = project(bx, by, 0);
+    const top = project(bx, by, z);
+    const isFocus = id === state.target;
+
+    const sx = (id === 'Moon' && flipMoon ? -1 : 1) * top.k;
+    m.icon.setAttribute('transform', `translate(${top.x.toFixed(2)} ${top.y.toFixed(2)}) scale(${sx.toFixed(3)} ${top.k.toFixed(3)})`);
+    if (m.sparkle) m.shape.setAttribute('transform', isFocus ? 'scale(1.5)' : '');
+
+    const showStalk = ratio > 0.05 && pos.altitude > 0;
+    m.stalk.setAttribute('x1', foot.x.toFixed(2)); m.stalk.setAttribute('y1', foot.y.toFixed(2));
+    m.stalk.setAttribute('x2', top.x.toFixed(2));  m.stalk.setAttribute('y2', top.y.toFixed(2));
+    m.stalk.style.opacity = showStalk ? 1 : 0;
+    m.foot.setAttribute('cx', foot.x.toFixed(2)); m.foot.setAttribute('cy', foot.y.toFixed(2));
+    m.foot.setAttribute('rx', (2.2 * foot.k).toFixed(2)); m.foot.setAttribute('ry', (2.2 * foot.k * cosT).toFixed(2));
+    m.foot.style.opacity = (0.5 * ratio).toFixed(3);
+
+    const labelLevel = labelLevels[id];
+    m.label.setAttribute('x', top.x.toFixed(2));
+    m.g.classList.toggle('named', labelLevel != null);
+    if (labelLevel != null) {
+      // 이름표가 올라갈 자리: 아이콘 윗끝
+      named.push({ m, rel: relatives[id], level: labelLevel, topY: top.y - (m.radius * (isFocus && m.sparkle ? 1.5 : 1) + 4) * top.k });
+    }
+    m.g.classList.toggle('focus', isFocus);
+
+    const baseOpacity = isFocus ? opacity : CONFIG.otherOpacity;
+    m.g.style.opacity = (pos.altitude < 0 ? baseOpacity * 0.45 : baseOpacity).toFixed(3); // 지평선 아래는 흐리게
+    depthOrder.push({ m, key: isFocus ? Infinity : top.depth });  // 먼 것부터, 안내 대상은 맨 위
+  }
+  // 이름표 층: 서로 가까운 천체끼리는 가장 높은 아이콘을 공통 기준선으로 쌓아요.
+  // (3D에서는 천체마다 떠오른 높이가 달라서, 각자 기준으로 쌓으면 이름이 겹쳐요)
+  for (const n of named) {
+    const baseline = Math.min(...named
+      .filter((o) => Math.abs(o.rel - n.rel) < CONFIG.labelSepDeg)
+      .map((o) => o.topY));
+    n.m.label.setAttribute('y', (baseline - n.level * COMPASS.labelGap).toFixed(2));
+  }
+
+  depthOrder.sort((p, q) => p.key - q.key);
+  const order = depthOrder.map((o) => o.m.g);
+  if (order.some((g, i) => el.orbits.children[i] !== g)) el.orbits.append(...order);
+}
+
 function render() {
   const heading = currentHeading();
-  const lat = state.lat;
 
   const relatives = {};  // id → 상대 방위 (+면 오른쪽에 있음)
   for (const id of state.enabled) {
@@ -569,41 +695,13 @@ function render() {
   const target = state.positions[focus];
   const targetRelative = relatives[focus];
 
-  // 모든 천체 마커 회전
-  for (const id of state.enabled) {
-    const pos = state.positions[id];
-    const m = state.markers[id];
-    if (!pos || !m) continue;
-    const relative = relatives[id];
-
-    // 누적 각도로 이어 붙여서 0°/360° 경계에서 튀지 않게 해요.
-    const prev = state.orbitAngles[id] ?? relative;
-    const angle = prev + signedDiff(relative, prev);
-    state.orbitAngles[id] = angle;
-    m.orbit.style.transform = `rotate(${angle}deg)`;
-    // 마커는 똑바로 세워요. 남반구에서는 달의 좌우가 뒤집혀 보여요.
-    const flip = id === 'Moon' && lat < 0 ? ' scaleX(-1)' : '';
-    m.marker.style.transform = `rotate(${-angle}deg)${flip}`;
-    m.orbit.classList.toggle('selected', id === state.target);
-    m.orbit.style.zIndex = id === state.target ? 2 : 1;
-    const level = labelLevels[id];
-    m.marker.classList.toggle('named', level != null);
-    if (level != null) m.marker.style.setProperty('--label-level', level);
-  }
-
   const diff = Math.abs(targetRelative);
   const { level, opacity } = levelFor(diff);
   el.compass.dataset.level = level;
   el.compass.style.setProperty('--opacity', opacity.toFixed(3));
   document.body.classList.toggle('compass-match', level === 'match');
 
-  for (const id of state.enabled) {
-    const m = state.markers[id];
-    const pos = state.positions[id];
-    if (!m || !pos) continue;
-    const base = id === state.target ? opacity : CONFIG.otherOpacity;
-    m.marker.style.opacity = (pos.altitude < 0 ? base * 0.45 : base).toFixed(3); // 지평선 아래는 흐리게
-  }
+  drawCompass(relatives, labelLevels, opacity);
 
   const isMatch = level === 'match';
   if (isMatch && !state.wasMatch) navigator.vibrate?.(40);
@@ -729,6 +827,34 @@ function scheduleUpdate() {
   updateQueued = true;
   requestAnimationFrame(() => { updateQueued = false; updatePositions(); });
 }
+
+// 3D 나침반 켜기/끄기
+el.mode3d.checked = state.mode3d;
+el.simTiltRow.hidden = !state.mode3d;
+el.mode3d.addEventListener('change', () => {
+  state.mode3d = el.mode3d.checked;
+  save('mode3d', state.mode3d);
+  el.simTiltRow.hidden = !state.mode3d;
+  render();
+});
+
+el.allBodies.addEventListener('click', toggleAll);
+
+// 나침반 크기가 바뀌면 SVG 좌표계(1단위 = 1px)를 다시 맞춰요.
+new ResizeObserver(([entry]) => {
+  const w = entry.contentRect.width;
+  if (!w || w === state.size) return;
+  state.size = w;
+  el.svg.setAttribute('viewBox', `${-w / 2} ${-w / 2} ${w} ${w}`);
+  render();
+}).observe(el.compass);
+
+// PC용 기울기 시뮬레이션
+el.simTilt.addEventListener('input', () => {
+  state.simTilt = Number(el.simTilt.value);
+  el.simTiltValue.textContent = `${state.simTilt}°`;
+  scheduleRender();
+});
 
 // PC용 방향 시뮬레이션
 el.simSlider.addEventListener('input', () => {
