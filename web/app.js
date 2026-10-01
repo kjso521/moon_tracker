@@ -6,8 +6,6 @@ const CONFIG = {
   idleOpacity: 0.24,    // COMPASS_OPACITY_DEFAULT
   otherOpacity: 0.6,    // 안내 대상이 아닌 천체의 투명도
   labelDeg: 20,         // 삼각형 기준 이 각도 안의 천체는 이름을 띄워요
-  labelSepDeg: 22,      // 이름표 하나가 궤도에서 차지하는 대략의 각도. 이보다 가까우면 층을 나눠요
-  labelMaxLevels: 3,
   defaultOffset: -9,    // 한국 기준 자기편각(°). 진북 방위 = 자북 방위 + 편각
   defaultLocation: { lat: 37.5665, lon: 126.978, name: '서울' }, // GPS를 못 받을 때
   smoothing: 0.2,       // 센서 흔들림 완화 (0~1, 클수록 빠르게 반응)
@@ -21,7 +19,6 @@ const COMPASS = {
   liftPer90: 1.1,       // 고도 90°일 때 떠오르는 높이 (원 반지름 대비)
   maxTiltView: 72,      // 폰을 완전히 세워도 원판이 선이 되지 않게 시점 기울기를 제한(°)
   focal: 700,           // 원근감 (작을수록 강함)
-  labelGap: 15,         // 이름표 층 간격
 };
 
 // 카테고리 → 설정 서랍에서 접었다 펼 수 있는 묶음
@@ -560,22 +557,9 @@ function pickFocus(relatives) {
   return nearest;
 }
 
-// 삼각형 근처(±labelDeg)의 천체에 이름을 띄워요. 서로 가까우면 겹치지 않게 층을 나눠 위로 쌓아요.
-// 가까운 천체부터 아래층(아이콘 바로 위)에 놓여요.
-function assignLabelLevels(relatives) {
-  const named = Object.keys(relatives)
-    .filter((id) => Math.abs(relatives[id]) <= CONFIG.labelDeg)
-    .sort((a, b) => Math.abs(relatives[a]) - Math.abs(relatives[b]));
-  const placed = [];    // { rel, level }
-  const levels = {};
-  for (const id of named) {
-    let level = 0;
-    while (placed.some((p) => p.level === level && Math.abs(p.rel - relatives[id]) < CONFIG.labelSepDeg)) level++;
-    if (level >= CONFIG.labelMaxLevels) continue; // 너무 많이 겹치면 생략
-    placed.push({ rel: relatives[id], level });
-    levels[id] = level;
-  }
-  return levels;
+// 삼각형 근처(±labelDeg)의 천체에만 이름을 띄워요.
+function namedBodies(relatives) {
+  return new Set(Object.keys(relatives).filter((id) => Math.abs(relatives[id]) <= CONFIG.labelDeg));
 }
 
 // ---------------------------------------------------------------------------
@@ -586,7 +570,7 @@ function assignLabelLevels(relatives) {
 
 const currentTilt = () => (state.sensorSeen ? state.tilt : state.simTilt);
 
-function drawCompass(relatives, labelLevels, opacity) {
+function drawCompass(relatives, named, opacity) {
   const w = state.size;
   if (!w) return;
   const R = w / 2 - (COMPASS.marker + COMPASS.gap);
@@ -649,14 +633,13 @@ function drawCompass(relatives, labelLevels, opacity) {
     m.foot.setAttribute('rx', (2.2 * foot.k).toFixed(2)); m.foot.setAttribute('ry', (2.2 * foot.k * cosT).toFixed(2));
     m.foot.style.opacity = (0.5 * ratio).toFixed(3);
 
-    // 이름표: 각자 아이콘 바로 위. 가까운 천체끼리는 층을 나눠 쌓고,
-    // 안내 대상은 맨 마지막에 그려서 겹쳐도 밝은 이름이 위에 와요.
-    const labelLevel = labelLevels[id];
-    m.g.classList.toggle('named', labelLevel != null);
-    if (labelLevel != null) {
-      const iconTop = top.y - (m.radius * (isFocus && m.sparkle ? 1.5 : 1) + 4) * top.k;
+    // 이름표: 항상 자기 아이콘 바로 위. 겹치면 겹치는 대로 두고,
+    // 안내 대상을 맨 마지막에 그려서 밝은 이름이 위에 오게 해요.
+    const isNamed = named.has(id);
+    m.g.classList.toggle('named', isNamed);
+    if (isNamed) {
       m.label.setAttribute('x', top.x.toFixed(2));
-      m.label.setAttribute('y', (iconTop - labelLevel * COMPASS.labelGap).toFixed(2));
+      m.label.setAttribute('y', (top.y - (m.radius * (isFocus && m.sparkle ? 1.5 : 1) + 4) * top.k).toFixed(2));
     }
     m.g.classList.toggle('focus', isFocus);
 
@@ -677,7 +660,7 @@ function render() {
     if (state.positions[id]) relatives[id] = signedDiff(state.positions[id].azimuth, heading);
   }
   const focus = pickFocus(relatives);
-  const labelLevels = assignLabelLevels(relatives);
+  const named = namedBodies(relatives);
   if (!focus) return;
   if (focus !== state.target) {
     state.target = focus;
@@ -693,7 +676,7 @@ function render() {
   el.compass.style.setProperty('--opacity', opacity.toFixed(3));
   document.body.classList.toggle('compass-match', level === 'match');
 
-  drawCompass(relatives, labelLevels, opacity);
+  drawCompass(relatives, named, opacity);
 
   const isMatch = level === 'match';
   if (isMatch && !state.wasMatch) navigator.vibrate?.(40);
