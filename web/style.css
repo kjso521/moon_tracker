@@ -123,13 +123,23 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
 .body.focus .focus-ring { opacity: 1; }
 .stalk { stroke: #fff; stroke-opacity: 0.35; stroke-width: 1; stroke-dasharray: 2 3; }
 .foot { fill: #fff; }
+/* 이름표: 포커스는 굵고 밝게, 나머지는 얇고 어둡게 → 겹쳐도 어느 쪽인지 바로 보여요 */
 .body-name {
   font-size: var(--fs-caption);
-  font-weight: 500;
-  fill: currentColor;
+  font-weight: 300;
+  fill: rgba(255, 255, 255, 0.55);
   text-anchor: middle;
   opacity: 0;
   transition: opacity 0.3s ease-out;
+}
+/* 포커스 이름은 배경색 외곽선으로 둘러서, 뒤에 겹친 회색 이름을 가려요 */
+.body.focus .body-name {
+  font-weight: 600;
+  fill: currentColor;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke;
 }
 .body.named .body-name { opacity: 1; }
 

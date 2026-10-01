@@ -6,9 +6,6 @@ const CONFIG = {
   idleOpacity: 0.24,    // COMPASS_OPACITY_DEFAULT
   otherOpacity: 0.6,    // 안내 대상이 아닌 천체의 투명도
   labelDeg: 20,         // 삼각형 기준 이 각도 안의 천체는 이름을 띄워요
-  labelSepDeg: 22,      // (2D) 이름표 하나가 궤도에서 차지하는 대략의 각도. 이보다 가까우면 층을 나눠요
-  labelMaxLevels: 3,    // (2D) 이름표 최대 층 수
-  flatLabelRatio: 0.2,  // 기울기 비율이 이보다 작으면(평면처럼 보이면) 2D 이름표 규칙을 써요
   defaultOffset: -9,    // 한국 기준 자기편각(°). 진북 방위 = 자북 방위 + 편각
   defaultLocation: { lat: 37.5665, lon: 126.978, name: '서울' }, // GPS를 못 받을 때
   smoothing: 0.2,       // 센서 흔들림 완화 (0~1, 클수록 빠르게 반응)
@@ -23,7 +20,6 @@ const COMPASS = {
   maxTiltView: 72,      // 폰을 완전히 세워도 원판이 선이 되지 않게 시점 기울기를 제한(°)
   focal: 700,           // 원근감 (작을수록 강함)
   morphMs: 450,         // 3D 켜기/끄기 때 평면 ↔ 원판으로 바뀌는 시간
-  labelGap: 15,         // (2D) 이름표 층 간격
 };
 
 // 카테고리 → 설정 서랍에서 접었다 펼 수 있는 묶음
@@ -568,27 +564,11 @@ function pickFocus(relatives) {
   return nearest;
 }
 
-// 이름표 계획: 삼각형 근처(±labelDeg) 천체 → 층 번호(0 = 아이콘 바로 위)
-// - 3D: 모두 각자 아이콘 바로 위 (겹치면 폰 각도를 바꿔 비껴보는 재미)
-// - 2D: 지평선 아래 천체는 생략(모두 아래라 안내 대상이 아래일 때만 그 이름),
-//        위 천체끼리는 가까운 것부터 아래층에 쌓아 겹치지 않게
-function labelPlan(relatives, flat) {
-  const near = Object.keys(relatives).filter((id) => Math.abs(relatives[id]) <= CONFIG.labelDeg);
-  if (!flat) return new Map(near.map((id) => [id, 0]));
-
-  const shown = near
-    .filter((id) => state.positions[id].altitude >= 0 || id === state.target)
-    .sort((a, b) => Math.abs(relatives[a]) - Math.abs(relatives[b]));
-  const plan = new Map();
-  const placed = [];    // { rel, level }
-  for (const id of shown) {
-    let level = 0;
-    while (placed.some((p) => p.level === level && Math.abs(p.rel - relatives[id]) < CONFIG.labelSepDeg)) level++;
-    if (level >= CONFIG.labelMaxLevels) continue; // 너무 많이 겹치면 생략
-    placed.push({ rel: relatives[id], level });
-    plan.set(id, level);
-  }
-  return plan;
+// 이름표: 삼각형 근처(±labelDeg)의 천체 모두, 아이콘 바로 위에 띄워요.
+// 높이를 옮기는 규칙이 없어서 이름이 오락가락하지 않아요. 겹치면 포커스(굵고 밝게, 외곽선)와
+// 나머지(얇고 어둡게)의 글자 차이로 구분하고, 지평선 아래 천체는 아이콘과 함께 더 흐려져요.
+function namedBodies(relatives) {
+  return new Set(Object.keys(relatives).filter((id) => Math.abs(relatives[id]) <= CONFIG.labelDeg));
 }
 
 // ---------------------------------------------------------------------------
@@ -624,7 +604,7 @@ function drawCompass(relatives, opacity) {
   const t = ratio * COMPASS.maxTiltView * Math.PI / 180;
   const cosT = Math.cos(t), sinT = Math.sin(t);
   const liftMax = R * COMPASS.liftPer90;
-  const labels = labelPlan(relatives, ratio < CONFIG.flatLabelRatio);
+  const named = namedBodies(relatives);
   // 세우면 천체가 원판 위로 떠오르니, 원판을 그 절반 정도만 내려서 전체가 가운데에 오게 해요.
   const shift = liftMax * sinT / 4;
 
@@ -680,13 +660,12 @@ function drawCompass(relatives, opacity) {
     m.foot.setAttribute('rx', (2.2 * foot.k).toFixed(2)); m.foot.setAttribute('ry', (2.2 * foot.k * cosT).toFixed(2));
     m.foot.style.opacity = (0.5 * ratio).toFixed(3);
 
-    // 이름표: 자기 아이콘 바로 위(+ 2D에서는 층만큼 위). 안내 대상은 맨 마지막에 그려서 밝은 이름이 위에 와요.
-    const level = labels.get(id);
-    m.g.classList.toggle('named', level != null);
-    if (level != null) {
-      const iconTop = top.y - ((isFocus ? m.focusRadius : m.radius) + 4) * top.k;
+    // 이름표: 항상 자기 아이콘 바로 위. 안내 대상은 맨 마지막에 그려서 굵고 밝은 이름이 위에 와요.
+    const isNamed = named.has(id);
+    m.g.classList.toggle('named', isNamed);
+    if (isNamed) {
       m.label.setAttribute('x', top.x.toFixed(2));
-      m.label.setAttribute('y', (iconTop - level * COMPASS.labelGap).toFixed(2));
+      m.label.setAttribute('y', (top.y - ((isFocus ? m.focusRadius : m.radius) + 4) * top.k).toFixed(2));
     }
     m.g.classList.toggle('focus', isFocus);
 

@@ -6,4 +6,4 @@
 //   1.xx  웹앱으로 전환
 //   2.xx  여러 천체 + 2D 나침반
 //   3.xx  3D 나침반
-self.APP_VERSION = { version: '3.03', date: '2026-10-02' };
+self.APP_VERSION = { version: '3.04', date: '2026-10-02' };
