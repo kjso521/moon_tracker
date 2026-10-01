@@ -27,7 +27,9 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
       <h1>Moon Tracker</h1>
-      <span></span>
+      <button id="mode-3d" class="icon-btn mode-btn" type="button" aria-pressed="true" aria-label="3D 나침반 켜기/끄기">
+        <span>3D</span>
+      </button>
     </header>
 
     <section class="stage">
@@ -99,14 +101,6 @@
       <section>
         <h3 class="section-title">천체 표시 <button id="all-bodies" class="group-all" type="button"></button></h3>
         <div id="body-options"></div>
-      </section>
-
-      <section>
-        <label class="switch-row">
-          <span class="switch-title">3D 나침반</span>
-          <input id="mode-3d" type="checkbox" role="switch">
-        </label>
-        <p class="note">폰을 세우면 나침반이 바닥에 놓인 원판처럼 눕고, 천체가 고도만큼 떠올라요.</p>
       </section>
 
       <section>

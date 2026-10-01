@@ -14,3 +14,6 @@ build/
 
 # macOS
 .DS_Store
+
+# 개인 스케치
+3d_navigator.png

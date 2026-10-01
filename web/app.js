@@ -828,11 +828,12 @@ function scheduleUpdate() {
   requestAnimationFrame(() => { updateQueued = false; updatePositions(); });
 }
 
-// 3D 나침반 켜기/끄기
-el.mode3d.checked = state.mode3d;
+// 3D 나침반 켜기/끄기 (제목 줄 오른쪽 버튼)
+el.mode3d.setAttribute('aria-pressed', String(state.mode3d));
 el.simTiltRow.hidden = !state.mode3d;
-el.mode3d.addEventListener('change', () => {
-  state.mode3d = el.mode3d.checked;
+el.mode3d.addEventListener('click', () => {
+  state.mode3d = !state.mode3d;
+  el.mode3d.setAttribute('aria-pressed', String(state.mode3d));
   save('mode3d', state.mode3d);
   el.simTiltRow.hidden = !state.mode3d;
   render();
