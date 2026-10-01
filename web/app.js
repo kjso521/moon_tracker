@@ -84,6 +84,7 @@ const el = {
   drawer: $('drawer'), menuBtn: $('menu-btn'), bodyOptions: $('body-options'), drawerStatus: $('drawer-status'),
   offset: $('offset'), offsetLabel: $('offset-label'), calibrate: $('calibrate'), resetOffset: $('reset-offset'),
   start: $('start'), startBtn: $('start-btn'), appVersion: $('app-version'),
+  locEdit: $('loc-edit'), locLat: $('loc-lat'), locLon: $('loc-lon'), locApply: $('loc-apply'), locCurrent: $('loc-current'),
 };
 
 // ---------------------------------------------------------------------------
@@ -108,6 +109,8 @@ const state = {
   lon: CONFIG.defaultLocation.lon,
   location: `기본 위치(${CONFIG.defaultLocation.name})`,
   locationOk: false,
+  gps: null,            // 마지막으로 받은 GPS 위치 { lat, lon, accuracy }
+  custom: null,         // 직접 입력한 위치 { lat, lon }. 이번 사용 중에만 유지해요
   magHeading: null,     // 센서가 준 자북 기준 방위 (스무딩 적용)
   pitch: null,          // 후면 카메라가 향하는 고도. 폰을 세웠을 때만 값이 있음
   tilt: 0,              // 폰을 세운 정도 (0 눕힘 ~ 90 세움). 3D 나침반에 사용
@@ -325,27 +328,75 @@ const needsOrientationPermission = () =>
 // 위치
 // ---------------------------------------------------------------------------
 
-function startGeolocation() {
-  const fallback = (reason) => {
-    state.location = `기본 위치(${CONFIG.defaultLocation.name}) · ${reason}`;
-    state.locationOk = false;
-    render();
-  };
-  if (!window.isSecureContext) return fallback('HTTPS 환경이 아니어서 GPS를 사용할 수 없습니다');
-  if (!navigator.geolocation) return fallback('GPS 미지원');
+function locationFallback(reason) {
+  if (state.custom) return;                 // 직접 입력한 위치를 쓰는 중이면 그대로 둬요
+  state.location = `기본 위치(${CONFIG.defaultLocation.name}) · ${reason}`;
+  state.locationOk = false;
+  render();
+}
 
+function onGps(pos) {
+  state.gps = { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy };
+  if (!state.custom) useGps();
+}
+
+function useGps() {
+  const { lat, lon, accuracy } = state.gps;
+  state.lat = lat;
+  state.lon = lon;
+  state.location = `GPS ${lat.toFixed(3)}, ${lon.toFixed(3)} (±${Math.round(accuracy)}m)`;
+  state.locationOk = true;
+  updatePositions();
+}
+
+const GEO_OPTIONS = { enableHighAccuracy: false, maximumAge: 60_000, timeout: 20_000 };
+const geoError = (err) => locationFallback(err.code === err.PERMISSION_DENIED ? '위치 권한 거부됨' : err.message);
+
+function startGeolocation() {
+  if (!window.isSecureContext) return locationFallback('HTTPS 환경이 아니어서 GPS를 사용할 수 없습니다');
+  if (!navigator.geolocation) return locationFallback('GPS 미지원');
   state.location = 'GPS 찾는 중…';
-  navigator.geolocation.watchPosition(
-    (pos) => {
-      state.lat = pos.coords.latitude;
-      state.lon = pos.coords.longitude;
-      state.location = `GPS ${state.lat.toFixed(3)}, ${state.lon.toFixed(3)} (±${Math.round(pos.coords.accuracy)}m)`;
-      state.locationOk = true;
-      updatePositions();
-    },
-    (err) => fallback(err.code === err.PERMISSION_DENIED ? '위치 권한 거부됨' : err.message),
-    { enableHighAccuracy: false, maximumAge: 60_000, timeout: 20_000 },
-  );
+  navigator.geolocation.watchPosition(onGps, geoError, GEO_OPTIONS);
+}
+
+// 위치 직접 입력 (설정 창 상태 줄). 다른 장소의 하늘을 미리 볼 때 잠깐 써요.
+function applyCustomLocation() {
+  const lat = parseFloat(el.locLat.value), lon = parseFloat(el.locLon.value);
+  if (!(lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180)) {
+    state.notice = '⚠ 위도는 -90~90, 경도는 -180~180 사이의 숫자로 입력하십시오.';
+    renderStatus();
+    return;
+  }
+  state.custom = { lat, lon };
+  state.lat = lat;
+  state.lon = lon;
+  state.location = `직접 입력 ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  state.locationOk = true;
+  state.notice = null;
+  updatePositions();
+}
+
+function backToCurrentLocation() {
+  state.custom = null;
+  state.notice = null;
+  if (state.gps) {
+    useGps();
+  } else if (window.isSecureContext && navigator.geolocation) {
+    state.location = 'GPS 찾는 중…';
+    renderStatus();
+    navigator.geolocation.getCurrentPosition(onGps, geoError, GEO_OPTIONS);
+  } else {
+    state.lat = CONFIG.defaultLocation.lat;
+    state.lon = CONFIG.defaultLocation.lon;
+    locationFallback(window.isSecureContext ? 'GPS 미지원' : 'HTTPS 환경이 아니어서 GPS를 사용할 수 없습니다');
+    updatePositions();
+  }
+  fillLocationInputs();
+}
+
+function fillLocationInputs() {
+  el.locLat.value = state.lat.toFixed(4);
+  el.locLon.value = state.lon.toFixed(4);
 }
 
 // ---------------------------------------------------------------------------
@@ -844,6 +895,10 @@ el.mode3d.addEventListener('click', () => {
 });
 
 el.allBodies.addEventListener('click', toggleAll);
+
+el.locEdit.addEventListener('toggle', () => { if (el.locEdit.open) fillLocationInputs(); });
+el.locApply.addEventListener('click', applyCustomLocation);
+el.locCurrent.addEventListener('click', backToCurrentLocation);
 
 // 나침반 크기가 바뀌면 SVG 좌표계(1단위 = 1px)를 다시 맞춰요.
 new ResizeObserver(([entry]) => {

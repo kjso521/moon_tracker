@@ -321,6 +321,23 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 0; bo
 #drawer-status { white-space: pre-line; }
 .version { margin-top: 12px; }
 
+/* 위치 직접 입력: 평소엔 접어 두는 보조 기능 */
+.loc-edit { margin-top: 4px; font-size: var(--fs-caption); }
+.loc-edit summary { color: var(--muted); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.loc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 8px; }
+.loc-fields label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); }
+.loc-fields input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-body);
+}
+.loc-edit .note { margin-top: 8px; }
+
 .group { border-top: 1px solid var(--line); }
 .group:first-child { border-top: 0; }
 .group summary {
