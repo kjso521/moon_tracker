@@ -6,4 +6,5 @@
 //   1.xx  웹앱으로 전환
 //   2.xx  여러 천체 + 2D 나침반
 //   3.xx  3D 나침반
-self.APP_VERSION = { version: '3.05', date: '2026-10-02' };
+//   4.xx  천체 안내 카드 — Tracker에서 Navigator로
+self.APP_VERSION = { version: '4.00', date: '2026-10-02' };
