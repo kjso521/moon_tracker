@@ -367,27 +367,31 @@ function createMarker(body) {
   const icon = svgEl('g', {}, g);
   const shape = svgEl('g', {}, icon);
   let lit = null;
-  let radius;                       // 이름표를 띄울 높이 계산용
+  let radius;                       // 아이콘 반지름 (이름표 높이 계산용)
+  let focusRadius;                  // 안내 대상일 때 반지름 (포커스 원·커진 별 포함)
   if (body.id === 'Moon') {
-    radius = COMPASS.marker / 2;
+    radius = focusRadius = COMPASS.marker / 2;
     const unit = svgEl('g', { transform: `scale(${radius})` }, shape);
     svgEl('circle', { class: 'moon-dark', r: 1 }, unit);
     lit = svgEl('path', { class: 'moon-lit' }, unit);
   } else if (body.group === 'solar') {
     radius = 6;
+    focusRadius = 10.25;            // 포커스 원 r 9.5 + 선 굵기 절반
     svgEl('circle', { r: 6, fill: body.color }, shape);
     svgEl('circle', { class: 'focus-ring', r: 9.5 }, shape);
   } else if (body.group === 'constellation') {
     radius = 7;
+    focusRadius = 7 * 1.5;          // 안내 대상이면 1.5배로 커져요
     svgEl('path', { d: SPARKLE, fill: body.color, transform: 'scale(7)' }, shape);
   } else {
     radius = 8;
+    focusRadius = 10.25;
     svgEl('circle', { r: 8, fill: 'url(#nebula-glow)' }, shape);
     svgEl('circle', { class: 'focus-ring', r: 9.5 }, shape);
   }
   const label = svgEl('text', { class: 'body-name' }, g);
   label.textContent = body.name;
-  return { g, stalk, foot, icon, shape, lit, label, radius, sparkle: body.group === 'constellation' };
+  return { g, stalk, foot, icon, shape, lit, label, radius, focusRadius, sparkle: body.group === 'constellation' };
 }
 
 function rebuildBodies() {
@@ -639,7 +643,7 @@ function drawCompass(relatives, named, opacity) {
     m.g.classList.toggle('named', isNamed);
     if (isNamed) {
       m.label.setAttribute('x', top.x.toFixed(2));
-      m.label.setAttribute('y', (top.y - (m.radius * (isFocus && m.sparkle ? 1.5 : 1) + 4) * top.k).toFixed(2));
+      m.label.setAttribute('y', (top.y - ((isFocus ? m.focusRadius : m.radius) + 4) * top.k).toFixed(2));
     }
     m.g.classList.toggle('focus', isFocus);
 
@@ -866,7 +870,7 @@ if (load('started', false)) start(false);
 else el.start.hidden = false;
 
 // 설정 창 맨 아래 버전 표시 (배포가 반영됐는지 확인용)
-el.appVersion.textContent = `Moon Tracker v${self.APP_VERSION.number} · ${self.APP_VERSION.date}`;
+el.appVersion.textContent = `Moon Tracker v${self.APP_VERSION.version} · ${self.APP_VERSION.date}`;
 
 if ('serviceWorker' in navigator) {
   // updateViaCache: 'none' → sw.js와 version.js 변경을 브라우저 캐시 없이 바로 감지해요.
