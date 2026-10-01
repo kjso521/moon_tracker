@@ -72,7 +72,7 @@ const bodyById = Object.fromEntries(BODIES.map((b) => [b.id, b]));
 const $ = (id) => document.getElementById(id);
 const el = {
   compass: $('compass'), svg: $('compass-svg'), orbits: $('orbits'),
-  face: $('face'), ring: $('ring'), disc: $('disc'), arrow: $('arrow'),
+  face: $('face'), ring: $('ring'), disc: $('disc'), arrow: $('arrow'), cardinals: $('cardinals'),
   simTiltRow: $('sim-tilt-row'), simTilt: $('sim-tilt'), simTiltValue: $('sim-tilt-value'),
   mode3d: $('mode-3d'), allBodies: $('all-bodies'),
   readout: $('readout'), guide: $('guide'), hint: $('hint'),
@@ -632,6 +632,13 @@ function namedBodies(relatives) {
 // ---------------------------------------------------------------------------
 
 const currentTilt = () => (state.sensorSeen ? state.tilt : state.simTilt);
+
+const CARDINALS = [['N', 0], ['E', 90], ['S', 180], ['W', 270]];
+const cardinalText = CARDINALS.map(([letter]) => {
+  const t = svgEl('text', { class: 'cardinal' }, el.cardinals);
+  t.textContent = letter;
+  return t;
+});
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
 
 // 3D를 켜고 끌 때 기울기를 한 번에 바꾸지 않고 morphMs 동안 부드럽게 옮겨요(모핑).
@@ -686,6 +693,15 @@ function drawCompass(relatives, opacity) {
   const tip = project(0, R, 0);
   const aw = 7 * tip.k, base = tip.y + 2 * tip.k, apex = tip.y - 6 * tip.k;
   el.arrow.setAttribute('d', `M${(tip.x - aw).toFixed(2)},${base.toFixed(2)}L${(tip.x + aw).toFixed(2)},${base.toFixed(2)}L${tip.x.toFixed(2)},${apex.toFixed(2)}Z`);
+
+  // 4방위: 원 안쪽에 흐리게. 폰 방향만큼 함께 돌고, 3D에서는 원판 위에 놓인 것처럼 투영해요.
+  const heading = currentHeading();
+  const rc = R * 0.84;
+  CARDINALS.forEach(([letter, az], i) => {
+    const a = (az - heading) * Math.PI / 180;
+    const p = project(rc * Math.sin(a), rc * Math.cos(a), 0);
+    cardinalText[i].setAttribute('transform', `translate(${p.x.toFixed(2)} ${p.y.toFixed(2)}) scale(${p.k.toFixed(3)})`);
+  });
 
   // 천체
   const Rm = R + COMPASS.gap + COMPASS.marker / 2;

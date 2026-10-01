@@ -142,6 +142,14 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
   paint-order: stroke;
 }
 .body.named .body-name { opacity: 1; }
+.cardinal {
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  fill: rgba(255, 255, 255, 0.3);
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
 .body { cursor: pointer; }
 .hit { fill: transparent; }
 .stalk, .foot, .body-name { pointer-events: none; }
@@ -322,8 +330,8 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 0; bo
 .version { margin-top: 12px; }
 
 /* 위치 직접 입력: 평소엔 접어 두는 보조 기능 */
-.loc-edit { margin-top: 4px; font-size: var(--fs-caption); }
-.loc-edit summary { color: var(--muted); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.loc-edit { margin-bottom: 8px; font-size: var(--fs-caption); }
+.loc-edit summary { color: var(--text); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .loc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 8px; }
 .loc-fields label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); }
 .loc-fields input {
@@ -412,5 +420,26 @@ button.secondary { background: transparent !important; color: var(--text) !impor
 .start h2 { margin: 0; font-size: var(--fs-title); }
 .start p { max-width: 17em; font-size: var(--fs-body); margin: 0 0 16px; color: var(--muted); line-height: 1.6; text-wrap: balance; }
 .start button { padding: 12px 28px !important; }
+
+/* ---------- 넓은 화면 (PC) ---------- */
+/* 왼쪽에 큰 나침반, 오른쪽에 정보 패널. 폰 화면은 위의 한 줄 배치 그대로예요. */
+@media (min-width: 900px) and (min-height: 560px) {
+  main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-rows: auto 1fr auto auto auto auto auto 1fr;
+    column-gap: 56px;
+    max-width: 1200px;
+    padding-inline: 40px;
+  }
+  .topbar { grid-column: 1 / -1; grid-row: 1; }
+  .stage { grid-column: 1; grid-row: 2 / -1; }
+  .info { grid-column: 2; grid-row: 3; }
+  .details { grid-column: 2; grid-row: 4; }
+  .status { grid-column: 2; grid-row: 5; }
+  .sim { grid-column: 2; grid-row: 6; }
+  .timebar { grid-column: 2; grid-row: 7; }
+  .compass { width: min(100cqw, calc(100cqh - 52px), 720px); }
+}
 
 [hidden] { display: none !important; }
