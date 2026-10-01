@@ -17,3 +17,9 @@ build/
 
 # 개인 스케치
 3d_navigator.png
+
+# PC에만 두는 파일 (GitHub에는 웹앱과 README만 올려요)
+python/
+notes/
+CLAUDE.md
+web/icons/icon.svg
