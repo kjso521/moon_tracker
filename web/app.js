@@ -64,21 +64,21 @@ const BODIES = [
   zodiac('Sagittarius', '궁수자리',   '11.23–12.21', 18.403, -34.384, '카우스 아우스트랄리스'),
   zodiac('Capricornus', '염소자리',   '12.22–1.19',  21.784, -16.127, '데네브 알게디'),
 
-  star('Polaris',     '북극성',         '사계절',  2.530,  89.26,  '북극성 (작은곰자리)'),
-  star('BigDipper',   '북두칠성',       '사계절', 12.257,  57.033, '메그레즈 (국자와 손잡이 사이)'),
+  star('Polaris',     '북극성',         '사계절',  2.530,  89.26,  '북극성'),
+  star('BigDipper',   '북두칠성',       '사계절', 12.257,  57.033, '메그레즈'),
   star('Cassiopeia',  '카시오페이아',   '사계절',  0.945,  60.72,  'W자 가운데 별'),
   star('Bootes',      '목동자리',       '봄',     14.261,  19.18,  '아르크투루스'),
-  star('Lyra',        '거문고자리',     '여름',   18.616,  38.78,  '베가 (직녀성)'),
-  star('Aquila',      '독수리자리',     '여름',   19.846,   8.87,  '알타이르 (견우성)'),
+  star('Lyra',        '거문고자리',     '여름',   18.616,  38.78,  '베가'),
+  star('Aquila',      '독수리자리',     '여름',   19.846,   8.87,  '알타이르'),
   star('Cygnus',      '백조자리',       '여름',   20.690,  45.28,  '데네브'),
   star('Pegasus',     '페가수스자리',   '가을',   23.0793, 15.205, '마르카브'),
   star('Andromeda',   '안드로메다자리', '가을',    1.162,  35.62,  '미라크'),
-  star('Orion',       '오리온자리',     '겨울',    5.604,  -1.20,  '알닐람 (삼태성 가운데 별)'),
+  star('Orion',       '오리온자리',     '겨울',    5.604,  -1.20,  '알닐람'),
   star('CanisMajor',  '큰개자리',       '겨울',    6.752, -16.72,  '시리우스'),
 
   deepsky('MilkyWayCore', '은하수 중심',     17.761, -29.01, '궁수자리 A*'),
   deepsky('M31',          '안드로메다 은하',  0.712,  41.27, 'M31'),
-  deepsky('M45',          '플레이아데스',     3.791,  24.12, 'M45 · 좀생이별'),
+  deepsky('M45',          '플레이아데스',     3.791,  24.12, 'M45'),
 ];
 const bodyById = Object.fromEntries(BODIES.map((b) => [b.id, b]));
 
@@ -806,7 +806,7 @@ function render() {
 
   if (target.altitude < 0) {
     const when = target.rise ? ` · ${body.riseLabel ?? '뜨는 시각'} ${formatEvent(target.rise)}` : '';
-    el.hint.textContent = `${body.name}${subjectParticle(body.name)} 지평선 아래에 있습니다${when}`;
+    el.hint.textContent = `지평선 아래에 있습니다${when}`;
   } else if (state.pitch != null) {
     const dAlt = target.altitude - state.pitch;
     el.hint.textContent = Math.abs(dAlt) <= CONFIG.matchDeg
@@ -835,7 +835,23 @@ function render() {
   el.rise.textContent = noEvents ? allDay : formatEvent(target.rise);
   el.set.textContent = noEvents ? allDay : formatEvent(target.set);
 
+  fitLines();
   renderStatus();
+}
+
+// 메인 화면의 글줄은 항상 한 줄로 유지해요. 넘치면 그 칸 안에서만 글자 크기를 줄여서
+// 줄바꿈 때문에 나침반 영역의 크기와 아래 정보 위치가 바뀌지 않게 해요.
+const fitCache = new WeakMap();
+function fitText(node) {
+  if (fitCache.get(node) === node.textContent) return;   // 글자가 바뀐 경우에만 다시 재요
+  fitCache.set(node, node.textContent);
+  node.style.fontSize = '';
+  if (node.scrollWidth <= node.clientWidth) return;
+  const base = parseFloat(getComputedStyle(node).fontSize);
+  node.style.fontSize = `${Math.max(9, Math.floor(base * node.clientWidth / node.scrollWidth * 10) / 10)}px`;
+}
+function fitLines() {
+  for (const node of [el.readout, el.guide, el.hint, el.alt, el.d2, el.rise, el.set]) fitText(node);
 }
 
 function renderStatus() {

@@ -158,10 +158,10 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
 .info { flex: none; padding-top: 4px; }
 /* 누르면 안내 카드가 열린다는 표시 */
 .readout::after { content: " ›"; font-weight: 400; color: var(--muted); }
-.readout { cursor: pointer; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; line-height: 1.2; }
-.guide { margin-top: 4px; font-size: var(--fs-body); font-weight: 500; min-height: 1.4em; }
+.readout { white-space: nowrap; overflow: hidden; cursor: pointer; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.guide { margin-top: 4px; font-size: var(--fs-body); font-weight: 500; min-height: 1.4em; white-space: nowrap; overflow: hidden; }
 .compass-match .guide { color: var(--match); }
-.hint { margin-top: 2px; font-size: var(--fs-caption); color: var(--muted); min-height: 1.4em; }
+.hint { white-space: nowrap; overflow: hidden; margin-top: 2px; font-size: var(--fs-caption); color: var(--muted); min-height: 1.4em; }
 
 .details {
   display: grid;
@@ -174,7 +174,7 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
 }
 .details div { display: flex; flex-direction: column; gap: 1px; }
 .details dt { font-size: var(--fs-caption); color: var(--muted); }
-.details dd { margin: 0; font-size: var(--fs-body); font-variant-numeric: tabular-nums; }
+.details dd { margin: 0; white-space: nowrap; overflow: hidden; font-size: var(--fs-body); font-variant-numeric: tabular-nums; }
 
 .status { flex: none; margin-top: 8px; font-size: var(--fs-caption); color: var(--match); }
 
