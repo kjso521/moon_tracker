@@ -59,4 +59,6 @@ python3 -m http.server -d web 8000   # http://localhost:8000
 PC에는 방향 센서가 없어서 슬라이더가 대신 나타난다. 폰에서는 HTTPS에서만 GPS와 나침반이 동작하므로 GitHub Pages 주소로 테스트한다.
 
 - 달 계산: [astronomy-engine](https://github.com/cosinekitty/astronomy) (ephem과 결과 일치 확인)
+- 별자리 모양: [d3-celestial](https://github.com/ofrohn/d3-celestial) 데이터에서 앱에 필요한 별자리만 추출 (BSD 3-Clause, © Olaf Frohn)
+- 천체 아이콘이나 방위 줄을 누르면 천체 안내 카드(별자리 모양, 행성의 현재 모습, 골든아워 등)가 열립니다.
 - 방위 보정: 나침반은 자북 기준이라 한국에서는 약 -9°를 보정한다. 달을 직접 겨냥해 보정할 수도 있다.

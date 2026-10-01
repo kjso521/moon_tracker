@@ -331,7 +331,7 @@ function startGeolocation() {
     state.locationOk = false;
     render();
   };
-  if (!window.isSecureContext) return fallback('HTTPS가 아니라 GPS를 쓸 수 없어요');
+  if (!window.isSecureContext) return fallback('HTTPS 환경이 아니어서 GPS를 사용할 수 없습니다');
   if (!navigator.geolocation) return fallback('GPS 미지원');
 
   state.location = 'GPS 찾는 중…';
@@ -365,9 +365,11 @@ const SPARKLE = 'M0,-1 L0.24,-0.24 L1,0 L0.24,0.24 L0,1 L-0.24,0.24 L-1,0 L-0.24
 // 아이콘은 항상 화면을 정면으로 보도록(빌보드) 위치만 투영하고 모양은 그대로 그려요.
 function createMarker(body) {
   const g = svgEl('g', { class: 'body' });
+  g.dataset.id = body.id;
   const stalk = svgEl('line', { class: 'stalk' }, g);
   const foot = svgEl('ellipse', { class: 'foot' }, g);
   const icon = svgEl('g', {}, g);
+  svgEl('circle', { class: 'hit', r: 20 }, icon);   // 손가락으로 누르기 쉽게 넓힌 터치 영역
   const shape = svgEl('g', {}, icon);
   let lit = null;
   let radius;                       // 아이콘 반지름 (이름표 높이 계산용)
@@ -525,6 +527,7 @@ function updatePositions() {
   if (moon) state.markers.Moon.lit.setAttribute('d', moonPath(moon.cycle));
   renderTime();
   render();
+  if (typeof renderSheet === 'function' && sheet.id) renderSheet(); // 안내 카드가 열려 있으면 함께 갱신
 }
 
 let renderQueued = false;
@@ -712,19 +715,19 @@ function render() {
   const azText = `${target.azimuth.toFixed(1)}° ${compassDirection(target.azimuth)}`;
   el.readout.textContent = state.enabled.length > 1 ? `${body.name} · ${azText}` : azText;
   el.guide.textContent = isMatch
-    ? `${body.name} 방향이에요!`
-    : `${targetRelative > 0 ? '오른쪽' : '왼쪽'}으로 ${Math.round(diff)}° 돌리세요`;
+    ? `${body.name} 방향입니다`
+    : `${targetRelative > 0 ? '오른쪽' : '왼쪽'}으로 ${Math.round(diff)}° 돌리십시오`;
 
   if (target.altitude < 0) {
     const when = target.rise ? ` · ${body.riseLabel ?? '뜨는 시각'} ${formatEvent(target.rise)}` : '';
-    el.hint.textContent = `${body.name}${subjectParticle(body.name)} 지평선 아래에 있어요${when}`;
+    el.hint.textContent = `${body.name}${subjectParticle(body.name)} 지평선 아래에 있습니다${when}`;
   } else if (state.pitch != null) {
     const dAlt = target.altitude - state.pitch;
     el.hint.textContent = Math.abs(dAlt) <= CONFIG.matchDeg
-      ? '높이도 맞았어요'
-      : `${dAlt > 0 ? '위로' : '아래로'} ${Math.round(Math.abs(dAlt))}° 기울이세요`;
+      ? '높이도 맞았습니다'
+      : `${dAlt > 0 ? '위로' : '아래로'} ${Math.round(Math.abs(dAlt))}° 기울이십시오`;
   } else {
-    el.hint.textContent = state.sensorSeen ? '폰을 세우면 높이도 안내해요' : ' ';
+    el.hint.textContent = state.sensorSeen ? '폰을 세우면 높이도 안내합니다' : ' ';
   }
 
   el.alt.textContent = `${target.altitude.toFixed(1)}°`;
@@ -780,12 +783,12 @@ el.offset.addEventListener('change', () => {
 el.calibrate.addEventListener('click', () => {
   const target = state.positions[state.target];
   if (!state.sensorSeen || !target) {
-    state.notice = '⚠ 방향 센서가 있어야 보정할 수 있어요.';
+    state.notice = '⚠ 방향 센서가 있어야 보정할 수 있습니다.';
     renderStatus();
     return;
   }
   if (!isLive()) {
-    state.notice = '⚠ 보정은 "지금" 시각에서만 할 수 있어요. 시간을 지금으로 되돌려 주세요.';
+    state.notice = '⚠ 보정은 "지금" 시각에서만 할 수 있습니다. 시간을 지금으로 되돌려 주십시오.';
     renderStatus();
     return;
   }

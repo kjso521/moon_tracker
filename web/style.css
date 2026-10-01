@@ -142,10 +142,15 @@ h1 { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.
   paint-order: stroke;
 }
 .body.named .body-name { opacity: 1; }
+.body { cursor: pointer; }
+.hit { fill: transparent; }
+.stalk, .foot, .body-name { pointer-events: none; }
 
 /* ---------- Readout ---------- */
 .info { flex: none; padding-top: 4px; }
-.readout { font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; line-height: 1.2; }
+/* 누르면 안내 카드가 열린다는 표시 */
+.readout::after { content: " ›"; font-weight: 400; color: var(--muted); }
+.readout { cursor: pointer; font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; line-height: 1.2; }
 .guide { margin-top: 4px; font-size: var(--fs-body); font-weight: 500; min-height: 1.4em; }
 .compass-match .guide { color: var(--match); }
 .hint { margin-top: 2px; font-size: var(--fs-caption); color: var(--muted); min-height: 1.4em; }
@@ -214,6 +219,57 @@ input[type="range"]::-webkit-slider-thumb {
   background: var(--slider);
 }
 input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: var(--slider); }
+
+/* ---------- Guide sheet (천체 안내 카드) ---------- */
+.sheet { position: fixed; inset: 0; z-index: 15; pointer-events: none; }
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.sheet-panel {
+  position: absolute;
+  inset: auto 0 0 0;
+  max-width: 440px;
+  max-height: 72dvh;
+  margin: 0 auto;
+  padding: 8px 20px calc(env(safe-area-inset-bottom) + 20px);
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  text-align: left;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.sheet[aria-hidden="false"] { pointer-events: auto; }
+.sheet[aria-hidden="false"] .sheet-backdrop { opacity: 1; }
+.sheet[aria-hidden="false"] .sheet-panel { transform: none; }
+
+.sheet-grab { touch-action: none; cursor: grab; }
+.sheet-grip { width: 36px; height: 4px; margin: 0 auto 10px; border-radius: 2px; background: var(--slider); }
+.sheet-grab header { display: flex; align-items: flex-start; justify-content: space-between; margin-right: -12px; }
+.sheet-grab h2 { margin: 0; font-size: var(--fs-title); font-weight: 700; }
+.sheet-sub { margin-top: 2px; font-size: var(--fs-caption); color: var(--muted); }
+
+#sheet-figure { display: block; width: 100%; max-height: 180px; aspect-ratio: 2 / 1; margin-top: 8px; overflow: visible; }
+.sheet-caption { min-height: 1.4em; font-size: var(--fs-caption); color: var(--muted); text-align: center; }
+.sheet-rows { margin-top: 12px; text-align: left; }
+.sheet-rows .wide { grid-column: 1 / -1; }
+.sheet-text { margin-top: 12px; font-size: var(--fs-body); line-height: 1.7; color: rgba(255, 255, 255, 0.8); }
+
+/* 카드 속 그림 */
+.fig-line { stroke: rgba(255, 255, 255, 0.3); stroke-width: 1; }
+.fig-line.dim { stroke: rgba(255, 255, 255, 0.14); }
+.fig-star { fill: #fff; }
+.fig-ref { fill: none; stroke: var(--match); stroke-width: 1.2; }
+.fig-glow { fill: url(#sheet-glow); }
+.fig-glow.sun { fill: url(#sheet-sun-glow); }
+.fig-ring { fill: none; stroke: #cdb98a; opacity: 0.9; }
+.fig-label { font-size: var(--fs-caption); fill: var(--muted); text-anchor: middle; }
 
 /* ---------- Drawer (settings) ---------- */
 .drawer { position: fixed; inset: 0; z-index: 10; pointer-events: none; }

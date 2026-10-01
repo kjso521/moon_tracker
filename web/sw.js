@@ -5,7 +5,7 @@
 importScripts('version.js');           // 버전이 바뀌면 캐시 이름도 바뀌어 옛 캐시를 정리해요
 const CACHE = `moon-tracker-v${self.APP_VERSION.version}`;
 const SHELL = [
-  './', './index.html', './style.css', './app.js', './version.js', './manifest.webmanifest',
+  './', './index.html', './style.css', './app.js', './guide.js', './version.js', './sky-data.js', './guide-data.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png',
   'https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js',
 ];

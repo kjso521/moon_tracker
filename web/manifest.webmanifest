@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Moon Tracker",
   "short_name": "Moon Tracker",
-  "description": "위치와 나침반으로 달과 행성의 방향을 찾아요",
+  "description": "위치와 나침반으로 달과 행성의 방향을 찾습니다",
   "lang": "ko",
   "start_url": "./",
   "scope": "./",
