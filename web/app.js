@@ -82,7 +82,7 @@ const el = {
   timeText: $('time-text'), timePicker: $('time-picker'), timeNow: $('time-now'), timeSlider: $('time-slider'),
   drawer: $('drawer'), menuBtn: $('menu-btn'), bodyOptions: $('body-options'), drawerStatus: $('drawer-status'),
   offset: $('offset'), offsetLabel: $('offset-label'), calibrate: $('calibrate'), resetOffset: $('reset-offset'),
-  start: $('start'), startBtn: $('start-btn'),
+  start: $('start'), startBtn: $('start-btn'), appVersion: $('app-version'),
 };
 
 // ---------------------------------------------------------------------------
@@ -822,7 +822,7 @@ new ResizeObserver(([entry]) => {
   if (!w || w === state.size) return;
   state.size = w;
   el.svg.setAttribute('viewBox', `${-w / 2} ${-w / 2} ${w} ${w}`);
-  render();
+  scheduleRender(); // 감지 콜백 안에서 바로 그리면 ResizeObserver 경고가 나서 다음 프레임에 그려요
 }).observe(el.compass);
 
 // PC용 기울기 시뮬레이션
@@ -865,6 +865,10 @@ el.startBtn.addEventListener('click', () => start(true));
 if (load('started', false)) start(false);
 else el.start.hidden = false;
 
+// 설정 창 맨 아래 버전 표시 (배포가 반영됐는지 확인용)
+el.appVersion.textContent = `Moon Tracker v${self.APP_VERSION.number} · ${self.APP_VERSION.date}`;
+
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => { /* 오프라인 캐시 없이도 동작 */ });
+  // updateViaCache: 'none' → sw.js와 version.js 변경을 브라우저 캐시 없이 바로 감지해요.
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => { /* 오프라인 캐시 없이도 동작 */ });
 }
